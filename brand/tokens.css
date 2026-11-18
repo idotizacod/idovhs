@@ -1,0 +1,59 @@
+/*
+ * IDOTIZA — tokens compartidos (Módulo 4.1).
+ * Estilo: DIY / fanzine / post-punk / collage + digital 2000.
+ * Importa este archivo primero en cualquier app para heredar la identidad.
+ */
+
+:root {
+  /* Paleta formal */
+  --ido-blanco: #f5f5f5;
+  --ido-negro: #000000;
+  --ido-rojo: #ff1e00;
+  --ido-celeste: #62f2f6;
+
+  /* Derivados para superficies y jerarquía */
+  --ido-papel: #fbfbf8;
+  --ido-tinta-suave: #4a4a4a;
+  --ido-trama: rgba(0, 0, 0, 0.12);
+  --ido-celeste-gastado: rgba(98, 242, 246, 0.55);
+
+  /* Alias semánticos */
+  --ido-bg: var(--ido-blanco);
+  --ido-surface: var(--ido-papel);
+  --ido-surface-raised: #ffffff;
+  --ido-text: var(--ido-negro);
+  --ido-text-muted: var(--ido-tinta-suave);
+  --ido-accent: var(--ido-rojo);
+  --ido-accent-cool: var(--ido-celeste);
+  --ido-border: var(--ido-negro);
+  --ido-success: #1a7f37;
+  --ido-warning: #b8860b;
+  --ido-error: var(--ido-rojo);
+
+  /* Tipografía: máquina de escribir + mano alzada */
+  --ido-font-typewriter: 'Special Elite', 'Courier New', monospace;
+  --ido-font-hand: 'Permanent Marker', 'Comic Sans MS', cursive;
+  --ido-font-display: var(--ido-font-typewriter);
+  --ido-font-body: var(--ido-font-typewriter);
+  --ido-font-mono: 'JetBrains Mono', 'Courier New', monospace;
+  --ido-font-detail: var(--ido-font-hand);
+
+  /* Compatibilidad con alias anteriores */
+  --color-primary: var(--ido-rojo);
+  --color-primary-hover: #ff4a2e;
+  --color-primary-active: #c91700;
+  --color-secondary: var(--ido-celeste);
+  --color-surface: var(--ido-surface);
+  --color-surface-raised: var(--ido-surface-raised);
+  --color-background: var(--ido-bg);
+  --color-text: var(--ido-text);
+  --color-text-secondary: var(--ido-text-muted);
+  --color-error: var(--ido-error);
+  --color-success: var(--ido-success);
+  --color-warning: var(--ido-warning);
+  --color-info: var(--ido-accent-cool);
+
+  --font-display: var(--ido-font-display);
+  --font-body: var(--ido-font-body);
+  --font-mono: var(--ido-font-mono);
+}

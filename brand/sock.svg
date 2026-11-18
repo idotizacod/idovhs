@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Sello del calcetín Idotiza">
+  <title>Calcetín — sello de Idotiza</title>
+  <g transform="rotate(-8 64 68)">
+    <circle cx="64" cy="68" r="57" fill="none" stroke="#ff1e00" stroke-width="2.5" stroke-dasharray="7 6"/>
+  </g>
+
+  <!-- Calcetín: contorno irregular hecho a mano -->
+  <path
+    d="M36 21 L83 18 L86 76 C86 85 93 89 105 91 C117 93 121 102 114 109 C107 116 95 116 81 114 L39 112 C31 112 27 106 28 98 L31 29 Z"
+    fill="#f5f5f5"
+    stroke="#000000"
+    stroke-width="4"
+    stroke-linejoin="round"
+    stroke-linecap="round"
+  />
+
+  <!-- Puño con franjas rojas -->
+  <path d="M33 30 L85 27" stroke="#000000" stroke-width="3" stroke-linecap="round"/>
+  <path d="M34 38 L86 35" stroke="#ff1e00" stroke-width="5" stroke-linecap="round"/>
+  <path d="M35 46 L86 43" stroke="#000000" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Talón y costuras -->
+  <path d="M41 78 C49 74 58 75 64 80" fill="none" stroke="#000000" stroke-width="2.5" stroke-dasharray="4 4" stroke-linecap="round"/>
+  <path d="M88 101 C96 98 103 99 109 103" fill="none" stroke="#000000" stroke-width="2.5" stroke-dasharray="4 4" stroke-linecap="round"/>
+
+  <!-- Parche / remiendo punk en la puntera -->
+  <path d="M96 99 L104 95 L112 100 L108 109 L99 108 Z" fill="#ff1e00" stroke="#000000" stroke-width="2.5" stroke-linejoin="round"/>
+
+  <!-- Marca manuscrita -->
+  <text x="41" y="72" font-family="'Permanent Marker','Comic Sans MS',cursive" font-size="19" fill="#000000" transform="rotate(-6 41 72)">IDZ</text>
+  <text x="44" y="92" font-family="'Courier New',monospace" font-size="9" font-weight="bold" letter-spacing="1.5" fill="#000000">BUSCA TU YDL</text>
+</svg>
