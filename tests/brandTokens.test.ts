@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { APP_TITLE, BRAND_NAME, hexToRgb01, IDO_COLORS } from '../brand/tokens';
+import { BRAND_NAME, IDO_COLORS, IDO_GRADE_PALETTE, hexToRgb01 } from '../brand/tokens';
+import { APP_TITLE } from '../src/config';
 import { withBrandChunk } from '../src/core/shaderSources';
 
 describe('Idotiza design tokens', () => {
-  it('expone la paleta formal y el nombre de marca', () => {
+  it('expone la paleta formal, la tríada de grade y los nombres', () => {
     expect(BRAND_NAME).toBe('Idotiza');
     expect(APP_TITLE).toBe('IDOVHS');
     expect(IDO_COLORS).toEqual({
@@ -11,6 +12,11 @@ describe('Idotiza design tokens', () => {
       negro: '#000000',
       rojo: '#ff1e00',
       celeste: '#62f2f6',
+    });
+    expect(IDO_GRADE_PALETTE).toEqual({
+      shadow: IDO_COLORS.negro,
+      mid: IDO_COLORS.celeste,
+      highlight: IDO_COLORS.blanco,
     });
   });
 

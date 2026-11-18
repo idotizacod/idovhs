@@ -10,7 +10,7 @@ Incluido:
 - Fuentes: imagen (**JPG/PNG**), vídeo (**MP4**), cámara web y patrón procedural.
 - Exportación: **PNG** del fotograma actual y **MP4** del viewport (WebM como fallback de navegador).
 - Consola de hardware con cuatro racks (incluido el **filtro Idotiza**), teclado accesible y layout responsive.
-- Sistema de marca reutilizable en `brand/`: tokens CSS/TS/JSON + chunk GLSL de color grade.
+- Sistema de marca reutilizable en `brand/`: paquete agnóstico (tokens CSS/TS/JSON + chunk GLSL + assets), sincronizable como fuente única.
 - Resolución adaptativa (downscale automático a 720p si baja el FPS).
 - Recuperación ante pérdida del contexto WebGL.
 - Pruebas unitarias (Vitest) de validadores, máquina de estados, resolución adaptativa e inyección de uniforms.
@@ -77,10 +77,10 @@ Cada pass es un `ShaderProgram` con uniforms inyectados desde los contratos de d
 | `src/core/adaptiveResolution.ts` | Histéresis FPS → resolución de preview |
 | `src/shaders/*.glsl` | Fragment/vertex shaders GLSL ES 3.00 |
 | `src/core/shaderSources.ts` | Composición de shaders con el chunk de marca |
+| `src/config.ts` | Configuración de runtime (`APP_TITLE`, viewport, flags) y parámetros por defecto |
 | `src/ui/controls.ts` | Construcción de los racks y controles |
+| `brand/` | Paquete de marca agnóstico: tokens CSS/TS/JSON, `grade.glsl`, assets (`logo.png`, `sock.svg`) y metadatos (`package.json`) |
 | `brand/tokens.css` / `tokens.ts` / `tokens.json` | Paleta Idotiza, fuente única para CSS/TS/otras apps |
-| `brand/logo.png` | Logo principal: cabecera y favicon |
-| `brand/grade.glsl` | Filtro reutilizable en cualquier pipeline GLSL |
 | `src/styles.css` | Sistema de diseño y layout de consola |
 
 ## Parámetros
@@ -102,9 +102,9 @@ Identidad DIY / fanzine / post-punk con deep lore alquimista santiaguino en bús
 | `rojo` | `#FF1E00` | Títulos y acentos |
 | `celeste` | `#62F2F6` | Filtros |
 
-Tipografía: máquina de escribir (`Special Elite`) para títulos/párrafos, mano alzada (`Permanent Marker`) para detalles. Texturas: grano, VHS, compresión digital, papel de cuaderno y papel de plástico. Logo: `brand/logo.png` (PNG transparente; cabecera y favicon). El título de la app es **IDOVHS** y el subtítulo **idotiza**. Doble click en un fader lo devuelve a su valor inicial.
+Tipografía: máquina de escribir monospace (`Special Elite`, fallback `Courier New`/`monospace`) en **toda** la interfaz — títulos, párrafos, botones, etiquetas, lecturas y detalles. Texturas: grano, VHS, compresión digital, papel de cuaderno y papel de plástico. Logo: `brand/logo.png` (PNG transparente; cabecera y favicon). El paquete `brand/` es agnóstico: el título de la app (**IDOVHS**, subtítulo **idotiza**) se define en la app (`index.html`, `src/config.ts`), no en los tokens de marca. Doble click en un fader lo devuelve a su valor inicial.
 
-Para otra app: `@import 'brand/tokens.css'`, importar `IDO_COLORS`/`hexToRgb01` desde `brand/tokens`, y concatenar `brand/grade.glsl?raw` en el fragment shader. El control **INTENSIDAD DEL GRADE** del RACK 04 ajusta el mismo filtro en tiempo real. Ver `brand/README.md`.
+Para otra app: `@import 'brand/tokens.css'`, importar `IDO_COLORS`/`hexToRgb01` (y `IDO_GRADE_PALETTE` si aplica) desde `brand/tokens`, y concatenar `brand/grade.glsl?raw` en el fragment shader. El control **INTENSIDAD DEL GRADE** del RACK 04 ajusta el mismo filtro en tiempo real. `brand/package.json` expone exports para consumo como paquete/submódulo. Ver `brand/README.md`.
 
 ## Notas de hardware
 

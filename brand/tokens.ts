@@ -1,6 +1,5 @@
-/** IDOTIZA — fuente única de la paleta para TS, Canvas y WebGL (Módulo 4.1). */
+/** IDOTIZA — fuente única de la paleta para TS, Canvas y WebGL. */
 export const BRAND_NAME = 'Idotiza';
-export const APP_TITLE = 'IDOVHS';
 
 export const IDO_COLORS = {
   blanco: '#f5f5f5',

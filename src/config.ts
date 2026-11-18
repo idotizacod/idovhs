@@ -1,5 +1,7 @@
 import type { EngineParams, Size } from './types';
 
+export const APP_TITLE = 'IDOVHS';
+
 function positiveInt(value: string | undefined, fallback: number): number {
   if (value === undefined || value.trim() === '') {
     return fallback;

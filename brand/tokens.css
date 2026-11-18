@@ -30,13 +30,13 @@
   --ido-warning: #b8860b;
   --ido-error: var(--ido-rojo);
 
-  /* Tipografía: máquina de escribir + mano alzada */
+  /* Tipografía: una sola voz en toda la app — máquina de escribir monospace */
   --ido-font-typewriter: 'Special Elite', 'Courier New', monospace;
-  --ido-font-hand: 'Permanent Marker', 'Comic Sans MS', cursive;
+  --ido-font-hand: var(--ido-font-typewriter);
   --ido-font-display: var(--ido-font-typewriter);
   --ido-font-body: var(--ido-font-typewriter);
-  --ido-font-mono: 'JetBrains Mono', 'Courier New', monospace;
-  --ido-font-detail: var(--ido-font-hand);
+  --ido-font-mono: var(--ido-font-typewriter);
+  --ido-font-detail: var(--ido-font-typewriter);
 
   /* Compatibilidad con alias anteriores */
   --color-primary: var(--ido-rojo);

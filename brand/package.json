@@ -1,0 +1,25 @@
+{
+  "name": "idotiza-brand",
+  "private": true,
+  "version": "1.0.0",
+  "description": "IDOTIZA — sistema de marca: tokens CSS/TS/JSON, chunk GLSL y logotipos",
+  "type": "module",
+  "files": [
+    "tokens.css",
+    "tokens.ts",
+    "tokens.json",
+    "grade.glsl",
+    "logo.png",
+    "sock.svg",
+    "ICONOGRAFIA.md",
+    "README.md"
+  ],
+  "exports": {
+    "./tokens": "./tokens.ts",
+    "./tokens.css": "./tokens.css",
+    "./tokens.json": "./tokens.json",
+    "./grade.glsl": "./grade.glsl",
+    "./logo.png": "./logo.png",
+    "./sock.svg": "./sock.svg"
+  }
+}
