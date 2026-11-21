@@ -1,6 +1,7 @@
 import { vec2 } from 'gl-matrix';
 import { MAX_PREVIEW_SIZE } from '../config';
 import type {
+  AspectRatio,
   BrandParams,
   CompressionParams,
   DatamoshParams,
@@ -9,11 +10,12 @@ import type {
   EngineParams,
   EngineState,
   ImageAdjustParams,
+  OutputParams,
   RenderStats,
   Size,
   VhsParams,
 } from '../types';
-import { AdaptiveResolution } from './adaptiveResolution';
+import { AdaptiveResolution, fitWithin } from './adaptiveResolution';
 import { MediaSource } from './MediaSource';
 import { pickVideoFormat, PNG_FORMAT, type OutputFormat } from './mediaFormats';
 import { RenderPipeline } from './RenderPipeline';
@@ -27,6 +29,41 @@ import {
   applyImageAdjustUniforms,
   applyVhsUniforms,
 } from './uniforms';
+
+function aspectRatioValue(ratio: AspectRatio, source: Size): number {
+  switch (ratio) {
+    case '4:5':
+      return 4 / 5;
+    case '1:1':
+      return 1;
+    case '16:9':
+      return 16 / 9;
+    case '9:16':
+      return 9 / 16;
+    case 'original':
+    default:
+      if (source.width > 0 && source.height > 0) {
+        return source.width / source.height;
+      }
+      return 16 / 9;
+  }
+}
+
+function frameSizeForAspect(ratio: AspectRatio, source: Size, max: Size): Size {
+  if (ratio === 'original') {
+    const base = source.width > 0 && source.height > 0 ? source : { width: 1280, height: 720 };
+    return fitWithin(base, max);
+  }
+  const r = aspectRatioValue(ratio, source);
+  // Ajustar un rectángulo de relación r para que quepa en max.
+  let width = max.width;
+  let height = Math.round(width / r);
+  if (height > max.height) {
+    height = max.height;
+    width = Math.round(height * r);
+  }
+  return { width: Math.max(1, width), height: Math.max(1, height) };
+}
 import {
   BRAND_SOURCE,
   COMPRESSION_SOURCE,
@@ -231,6 +268,12 @@ export class Engine {
 
   setImageAdjust(patch: Partial<ImageAdjustParams>): void {
     this.setParams({ ...this.params, imageAdjust: { ...this.params.imageAdjust, ...patch } });
+  }
+
+  setOutput(patch: Partial<OutputParams>): void {
+    this.setParams({ ...this.params, output: { ...this.params.output, ...patch } });
+    // Al cambiar el formato de salida, reiniciar adaptación para evitar transiciones extrañas.
+    this.adaptive.reset();
   }
 
   send(event: EngineEvent): boolean {
@@ -549,7 +592,8 @@ export class Engine {
       return;
     }
 
-    const target = this.adaptive.update(this.fps, source.size, MAX_PREVIEW_SIZE);
+    const desiredFrame = frameSizeForAspect(this.params.output.aspectRatio, source.size, MAX_PREVIEW_SIZE);
+    const target = this.adaptive.update(this.fps, desiredFrame, MAX_PREVIEW_SIZE);
     if (this.canvas.width !== target.width || this.canvas.height !== target.height) {
       this.canvas.width = target.width;
       this.canvas.height = target.height;
@@ -569,7 +613,7 @@ export class Engine {
       pipeline.bindTarget(writeIndex);
       program.use();
       if (index === 0) {
-        applyImageAdjustUniforms(program, this.params.imageAdjust, target);
+        applyImageAdjustUniforms(program, this.params.imageAdjust, target, source.size);
       } else if (index === 1) {
         applyDigicamUniforms(program, this.params.digicam, this.elapsed, target);
       } else if (index === 2) {

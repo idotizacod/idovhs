@@ -80,6 +80,12 @@ export interface ImageAdjustParams {
   sharpen: number; // [0.0 - 1.0]
 }
 
+export type AspectRatio = 'original' | '4:5' | '1:1' | '16:9' | '9:16';
+
+export interface OutputParams {
+  aspectRatio: AspectRatio;
+}
+
 export interface EngineParams {
   imageAdjust: ImageAdjustParams;
   digicam: DigicamParams;
@@ -87,6 +93,7 @@ export interface EngineParams {
   compression: CompressionParams;
   brand: BrandParams;
   datamosh: DatamoshParams;
+  output: OutputParams;
 }
 
 export interface EngineState {

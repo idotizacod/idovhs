@@ -1,5 +1,6 @@
 import { DEFAULT_PARAMS } from '../config';
 import type {
+  AspectRatio,
   BrandParams,
   CompressionParams,
   DatamoshParams,
@@ -7,6 +8,7 @@ import type {
   DitheringType,
   EngineParams,
   ImageAdjustParams,
+  OutputParams,
   SensorProfile,
   VhsParams,
 } from '../types';
@@ -14,6 +16,7 @@ import type {
 const SENSOR_PROFILES: readonly SensorProfile[] = ['sony_ccd_v1', 'early_cmos', 'lofi_ccd'];
 const DITHER_TYPES: readonly DitheringType[] = ['bayer_4x4', 'bayer_8x8', 'noise'];
 const BLOCK_SIZES: readonly number[] = [4, 8, 16];
+const ASPECT_RATIOS: readonly AspectRatio[] = ['original', '4:5', '1:1', '16:9', '9:16'];
 
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -126,6 +129,13 @@ export function validateImageAdjust(params: ImageAdjustParams): ImageAdjustParam
   };
 }
 
+export function validateOutput(params: OutputParams): OutputParams {
+  const fallback = DEFAULT_PARAMS.output;
+  return {
+    aspectRatio: oneOf(params.aspectRatio, ASPECT_RATIOS, fallback.aspectRatio),
+  };
+}
+
 export function validateParams(params: EngineParams): EngineParams {
   return {
     imageAdjust: validateImageAdjust(params.imageAdjust),
@@ -134,6 +144,7 @@ export function validateParams(params: EngineParams): EngineParams {
     compression: validateCompression(params.compression),
     brand: validateBrand(params.brand),
     datamosh: validateDatamosh(params.datamosh),
+    output: validateOutput(params.output),
   };
 }
 

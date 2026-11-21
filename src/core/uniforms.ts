@@ -142,6 +142,7 @@ export function applyImageAdjustUniforms(
   program: UniformSink,
   params: ImageAdjustParams,
   resolution: Size,
+  sourceSize: Size,
 ): void {
   program.setFloat('u_brightness', smoothSigned(params.brightness));
   program.setFloat('u_contrast', smoothSigned(params.contrast));
@@ -156,4 +157,5 @@ export function applyImageAdjustUniforms(
   program.setFloat('u_hslSatMagenta', smoothSigned(params.hslSatMagenta));
   program.setFloat('u_sharpen', smooth01(params.sharpen));
   program.setVec2('u_resolution', resolution.width, resolution.height);
+  program.setVec2('u_sourceSize', Math.max(1, sourceSize.width), Math.max(1, sourceSize.height));
 }

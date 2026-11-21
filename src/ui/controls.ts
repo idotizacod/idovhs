@@ -152,6 +152,21 @@ export function buildControls(params: EngineParams, engine: Engine): { reset: ()
   hslDropdown.append(hslSummary, hslBody);
 
   controls.push(
+    createSelect(
+      imageAdjust,
+      {
+        label: 'FORMATO DE SALIDA',
+        value: params.output.aspectRatio,
+        options: [
+          { value: 'original', label: 'Libre (original)' },
+          { value: '4:5', label: '4:5' },
+          { value: '1:1', label: '1:1' },
+          { value: '16:9', label: '16:9' },
+          { value: '9:16', label: '9:16' },
+        ],
+      },
+      (value) => engine.setOutput({ aspectRatio: value }),
+    ),
     createSlider(
       imageAdjust,
       {

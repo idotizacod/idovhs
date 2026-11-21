@@ -17,7 +17,8 @@ uniform float u_hslSatBlue;    // [-1, 1]
 uniform float u_hslSatViolet;  // [-1, 1]
 uniform float u_hslSatMagenta; // [-1, 1]
 uniform float u_sharpen;       // [0, 1]
-uniform vec2 u_resolution;
+uniform vec2 u_resolution;     // tamaño de salida (frame)
+uniform vec2 u_sourceSize;     // tamaño de la fuente original
 
 float luma(vec3 c) {
   return dot(c, vec3(0.299, 0.587, 0.114));
@@ -80,10 +81,31 @@ float hueWeight(float h, float center, float width) {
   return 1.0 - smoothstep(width * 0.5, width, hueDist(h, center));
 }
 
+vec4 sampleSource(vec2 srcUv) {
+  if (srcUv.x < 0.0 || srcUv.x > 1.0 || srcUv.y < 0.0 || srcUv.y > 1.0) {
+    return vec4(0.0, 0.0, 0.0, 1.0);
+  }
+  return texture(u_texture, srcUv);
+}
+
 void main() {
   vec2 uv = clamp(v_texCoord, 0.0, 1.0);
-  vec2 px = 1.0 / max(u_resolution, vec2(1.0));
-  vec4 src = texture(u_texture, uv);
+
+  // Ajuste de encuadre (contain): sin stretch/warp, con letterbox si el aspecto difiere.
+  vec2 outRes = max(u_resolution, vec2(1.0));
+  vec2 srcRes = max(u_sourceSize, vec2(1.0));
+  float outAspect = outRes.x / outRes.y;
+  float srcAspect = srcRes.x / srcRes.y;
+  vec2 fitScale = vec2(min(1.0, srcAspect / outAspect), min(1.0, outAspect / srcAspect));
+  vec2 fitOffset = (1.0 - fitScale) * 0.5;
+  vec2 srcUv = (uv - fitOffset) / max(fitScale, vec2(1e-6));
+
+  if (srcUv.x < 0.0 || srcUv.x > 1.0 || srcUv.y < 0.0 || srcUv.y > 1.0) {
+    fragColor = vec4(0.0, 0.0, 0.0, 1.0);
+    return;
+  }
+
+  vec4 src = texture(u_texture, srcUv);
   vec3 color = clamp(src.rgb, 0.0, 1.0);
 
   bool neutral =
@@ -133,17 +155,18 @@ void main() {
     color = hsl2rgb(hsl);
   }
 
-  // Afilar imagen (unsharp mask agresivo).
+  // Afilar imagen (unsharp mask agresivo) en espacio de fuente.
   if (u_sharpen > 0.0001) {
+    vec2 texel = 1.0 / srcRes;
     vec3 baseBlur =
-      texture(u_texture, clamp(uv + vec2(px.x, 0.0), 0.0, 1.0)).rgb +
-      texture(u_texture, clamp(uv - vec2(px.x, 0.0), 0.0, 1.0)).rgb +
-      texture(u_texture, clamp(uv + vec2(0.0, px.y), 0.0, 1.0)).rgb +
-      texture(u_texture, clamp(uv - vec2(0.0, px.y), 0.0, 1.0)).rgb +
-      texture(u_texture, clamp(uv + vec2(px.x, px.y), 0.0, 1.0)).rgb +
-      texture(u_texture, clamp(uv + vec2(-px.x, px.y), 0.0, 1.0)).rgb +
-      texture(u_texture, clamp(uv + vec2(px.x, -px.y), 0.0, 1.0)).rgb +
-      texture(u_texture, clamp(uv + vec2(-px.x, -px.y), 0.0, 1.0)).rgb;
+      sampleSource(srcUv + vec2(texel.x, 0.0)).rgb +
+      sampleSource(srcUv - vec2(texel.x, 0.0)).rgb +
+      sampleSource(srcUv + vec2(0.0, texel.y)).rgb +
+      sampleSource(srcUv - vec2(0.0, texel.y)).rgb +
+      sampleSource(srcUv + vec2(texel.x, texel.y)).rgb +
+      sampleSource(srcUv + vec2(-texel.x, texel.y)).rgb +
+      sampleSource(srcUv + vec2(texel.x, -texel.y)).rgb +
+      sampleSource(srcUv + vec2(-texel.x, -texel.y)).rgb;
     baseBlur *= 1.0 / 8.0;
     vec3 detail = src.rgb - baseBlur;
     color += detail * u_sharpen * 3.5;

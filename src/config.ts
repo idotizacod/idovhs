@@ -87,6 +87,9 @@ export const DEFAULT_PARAMS: Readonly<EngineParams> = {
     blockSize: 4,
     feedback: 0,
   },
+  output: {
+    aspectRatio: 'original',
+  },
 };
 
 export function cloneDefaultParams(): EngineParams {
@@ -97,5 +100,6 @@ export function cloneDefaultParams(): EngineParams {
     compression: { ...DEFAULT_PARAMS.compression },
     brand: { ...DEFAULT_PARAMS.brand },
     datamosh: { ...DEFAULT_PARAMS.datamosh },
+    output: { ...DEFAULT_PARAMS.output },
   };
 }

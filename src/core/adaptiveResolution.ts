@@ -25,7 +25,7 @@ export class AdaptiveResolution {
   private fastFrames = 0;
 
   /** Devuelve el tamaño de render recomendado aplicando histéresis sobre el FPS. */
-  update(fps: number, source: Size, max: Size): Size {
+  update(fps: number, frameSize: Size, max: Size): Size {
     if (fps > 0 && fps < SLOW_FPS) {
       this.slowFrames += 1;
       this.fastFrames = 0;
@@ -37,15 +37,16 @@ export class AdaptiveResolution {
       this.fastFrames = 0;
     }
 
+    const bounded = fitWithin(frameSize, max);
+    const minScale = bounded.width > 0 ? Math.min(1, MIN_WIDTH / bounded.width) : 1;
     if (this.slowFrames >= SLOW_FRAMES_TO_REDUCE) {
-      this.scale = Math.min(1, Math.max(MIN_WIDTH / source.width, this.scale * REDUCTION_FACTOR));
+      this.scale = Math.min(1, Math.max(minScale, this.scale * REDUCTION_FACTOR));
       this.slowFrames = 0;
     } else if (this.fastFrames >= FAST_FRAMES_TO_RESTORE) {
       this.scale = Math.min(1, this.scale * RESTORE_FACTOR);
       this.fastFrames = 0;
     }
 
-    const bounded = fitWithin(source, max);
     return {
       width: Math.max(1, Math.round(bounded.width * this.scale)),
       height: Math.max(1, Math.round(bounded.height * this.scale)),
