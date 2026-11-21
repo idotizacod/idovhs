@@ -625,7 +625,9 @@ body::before {
   }
 
   .viewport-panel {
-    position: static;
+    position: sticky;
+    top: 0;
+    z-index: 10;
   }
 
   .rack summary {
