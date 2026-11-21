@@ -17,6 +17,8 @@ export interface DigicamParams {
   flashThreshold: number; // [0.0 - 1.0]
   flashBloomRadius: number; // [1.0 - 16.0]
   sensorProfile: SensorProfile;
+  chromaAberration: number; // [0.0 - 1.0]
+  lumaGrain: number; // [0.0 - 1.0]
 }
 
 export interface VhsParams {
@@ -25,6 +27,11 @@ export interface VhsParams {
   magneticNoise: number; // [0.0 - 1.0]
   colorBleed: number; // [0.0 - 1.0]
   scanlineIntensity: number; // [0.0 - 1.0]
+  chromaDelay: number; // [0.0 - 1.0]
+  syncDrift: number; // [0.0 - 1.0]
+  headSwitching: number; // [0.0 - 1.0]
+  dropouts: number; // [0.0 - 1.0]
+  tapeDamage: number; // [0.0 - 1.0]
 }
 
 export interface CompressionParams {
@@ -32,17 +39,54 @@ export interface CompressionParams {
   blockinessSize: number; // [4, 8, 16]
   ditheringType: DitheringType;
   posterizationLevels: number; // [2 - 16]
+  blockCorruption: number; // [0.0 - 1.0]
+  blockCorruptionShift: number; // [0.0 - 1.0]
 }
 
 export interface BrandParams {
   gradeAmount: number; // [0.0 - 1.0]
+  dirtAmount: number; // [0.0 - 1.0]
+  scratchesAmount: number; // [0.0 - 1.0]
+  dustAmount: number; // [0.0 - 1.0]
+  crtAmount: number; // [0.0 - 1.0] master
+  crtCurvature: number; // [0.0 - 1.0]
+  crtScanlines: number; // [0.0 - 1.0]
+  crtMask: number; // [0.0 - 1.0]
+  crtVignette: number; // [0.0 - 1.0]
+  crtHalation: number; // [0.0 - 1.0]
+  crtConvergence: number; // [0.0 - 1.0]
+  crtCompensation: number; // [0.0 - 1.0] zoom para compensar curvatura CRT
+}
+
+export interface DatamoshParams {
+  amount: number; // [0.0 - 1.0]
+  motionThreshold: number; // [0.0 - 1.0]
+  blockSize: number; // [4, 8, 16]
+  feedback: number; // [0.0 - 1.0]
+}
+
+export interface ImageAdjustParams {
+  brightness: number; // [-1.0 - 1.0]
+  contrast: number; // [-1.0 - 1.0]
+  saturation: number; // [-1.0 - 1.0]
+  hslSatRed: number; // [-1.0 - 1.0]
+  hslSatOrange: number; // [-1.0 - 1.0]
+  hslSatYellow: number; // [-1.0 - 1.0]
+  hslSatGreen: number; // [-1.0 - 1.0]
+  hslSatCyan: number; // [-1.0 - 1.0]
+  hslSatBlue: number; // [-1.0 - 1.0]
+  hslSatViolet: number; // [-1.0 - 1.0]
+  hslSatMagenta: number; // [-1.0 - 1.0]
+  sharpen: number; // [0.0 - 1.0]
 }
 
 export interface EngineParams {
+  imageAdjust: ImageAdjustParams;
   digicam: DigicamParams;
   vhs: VhsParams;
   compression: CompressionParams;
   brand: BrandParams;
+  datamosh: DatamoshParams;
 }
 
 export interface EngineState {

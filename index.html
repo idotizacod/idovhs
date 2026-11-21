@@ -20,18 +20,23 @@
             <p class="brand-note">idotiza</p>
           </div>
         </div>
-        <div class="transport" role="group" aria-label="Controles de reproducción">
-          <button id="btn-play" class="btn btn-primary" type="button" aria-label="Reproducir">▶ PLAY</button>
-          <button id="btn-pause" class="btn" type="button" aria-label="Pausar">❚❚ PAUSE</button>
-          <button id="btn-reset" class="btn" type="button">↺ RESET</button>
-          <span id="status-pill" class="status-pill" role="status">IDLE</span>
-        </div>
       </header>
 
       <main class="workspace">
-        <section class="viewport-panel" aria-labelledby="viewport-title">
+        <section class="viewport-panel" aria-label="Vista previa">
           <div class="panel-heading">
-            <h2 id="viewport-title">VIEWPORT</h2>
+            <div class="source-bar" role="group" aria-label="Fuente de medios">
+              <label class="btn btn-file" for="file-input">
+                📁 CARGAR ARCHIVO
+                <input id="file-input" type="file" accept=".jpg,.jpeg,.png,.mp4" hidden />
+              </label>
+              <button id="btn-export-png" class="btn" type="button" title="Exportar el fotograma actual como PNG">
+                EXPORTAR PNG
+              </button>
+              <button id="btn-export-mp4" class="btn" type="button" title="Si hay un vídeo cargado, lo exporta completo con la duración original; si no, graba el viewport manualmente">
+                EXPORTAR MP4
+              </button>
+            </div>
           </div>
           <div class="canvas-frame">
             <canvas id="viewport" width="1280" height="720" aria-label="Vista previa del efecto"></canvas>
@@ -40,17 +45,25 @@
               <span>Reinicializando pipeline…</span>
             </div>
           </div>
-          <div class="source-bar" role="group" aria-label="Fuente de medios">
-            <label class="btn btn-file" for="file-input">
-              📁 CARGAR ARCHIVO
-              <input id="file-input" type="file" accept=".jpg,.jpeg,.png,.mp4" hidden />
-            </label>
-            <button id="btn-export-png" class="btn" type="button" title="Exportar el fotograma actual como PNG">
-              EXPORTAR PNG
-            </button>
-            <button id="btn-export-mp4" class="btn" type="button" title="Grabar el viewport como MP4 (WebM si el navegador no soporta MP4)">
-              EXPORTAR MP4
-            </button>
+          <div id="timeline-bar" class="timeline-bar" hidden>
+            <span id="time-current" class="time-label">0:00</span>
+            <input
+              id="timeline"
+              class="timeline-slider"
+              type="range"
+              min="0"
+              max="0"
+              step="0.01"
+              value="0"
+              aria-label="Línea de tiempo de reproducción"
+            />
+            <span id="time-duration" class="time-label">0:00</span>
+          </div>
+          <div class="transport" role="group" aria-label="Controles de reproducción">
+            <button id="btn-play" class="btn btn-primary" type="button" aria-label="Reproducir">▶ PLAY</button>
+            <button id="btn-pause" class="btn" type="button" aria-label="Pausar">❚❚ PAUSE</button>
+            <button id="btn-reset" class="btn" type="button">↺ RESET</button>
+            <span id="status-pill" class="status-pill" role="status">IDLE</span>
           </div>
           <p id="error-message" class="error-message" role="alert" hidden></p>
         </section>
@@ -59,6 +72,14 @@
           <details class="rack" open>
             <summary>
               <span class="rack-index">RACK 01</span>
+              <span>AJUSTES DE IMAGEN <small>BRILLO · CONTRASTE · COLOR · NITIDEZ</small></span>
+            </summary>
+            <div id="rack-image-adjust" class="rack-body"></div>
+          </details>
+
+          <details class="rack" open>
+            <summary>
+              <span class="rack-index">RACK 02</span>
               <span>ÓPTICA Y SENSOR <small>DIGICAM ENGINE</small></span>
             </summary>
             <div id="rack-digicam" class="rack-body"></div>
@@ -66,32 +87,40 @@
 
           <details class="rack" open>
             <summary>
-              <span class="rack-index">RACK 02</span>
+              <span class="rack-index">RACK 03</span>
               <span>CANAL ANALÓGICO <small>VHS ENGINE</small></span>
             </summary>
             <div id="rack-vhs" class="rack-body"></div>
           </details>
 
+          <details class="rack rack-brand" open>
+            <summary>
+              <span class="rack-index">RACK 04</span>
+              <span>ACABADO Y MARCA <small>CRT · SUPERFICIE · ANALÓGICO</small></span>
+            </summary>
+            <div id="rack-brand" class="rack-body"></div>
+          </details>
+
           <details class="rack" open>
             <summary>
-              <span class="rack-index">RACK 03</span>
+              <span class="rack-index">RACK 05</span>
               <span>COMPRESIÓN Y ARTEFACTOS <small>DIGITAL ENGINE</small></span>
             </summary>
             <div id="rack-compression" class="rack-body"></div>
           </details>
 
-          <details class="rack rack-brand" open>
+          <details class="rack rack-datamosh" open>
             <summary>
-              <span class="rack-index">RACK 04</span>
-              <span>FILTRO IDOTIZA <small>CELESTE NEÓN GASTADO</small></span>
+              <span class="rack-index">RACK 06</span>
+              <span>DATAMOSH <small>SIMULADO · DIGITAL/TEMPORAL</small></span>
             </summary>
-            <div id="rack-brand" class="rack-body"></div>
+            <div id="rack-datamosh" class="rack-body"></div>
           </details>
         </aside>
       </main>
 
       <footer class="footer">
-        <span>CHAIN: OPTICS → VHS → COMPRESSION → FILTRO IDOTIZA → OUTPUT</span>
+        <span>CHAIN: IMAGE ADJUST → OPTICS → VHS → ACABADO/CRT → COMPRESSION → DATAMOSH → OUTPUT</span>
         <span>IDOVHS · DIY / FANZINE / 2000 · WebGL 2.0 · TypeScript strict</span>
       </footer>
     </div>

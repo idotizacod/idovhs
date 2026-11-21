@@ -63,20 +63,22 @@ describe('inyección de uniforms', () => {
   it('compression: mapea el tipo de dithering', () => {
     const sink = new CaptureSink();
     const { compression } = cloneDefaultParams();
-    applyCompressionUniforms(sink, compression, RESOLUTION);
+    applyCompressionUniforms(sink, compression, 1.0, RESOLUTION);
     expect(sink.ints.get('u_ditherType')).toBe(0);
-    expect(sink.floats.get('u_blockSize')).toBe(8);
+    expect(sink.floats.get('u_blockSize')).toBe(compression.blockinessSize);
 
-    applyCompressionUniforms(sink, { ...compression, ditheringType: 'noise' }, RESOLUTION);
+    applyCompressionUniforms(sink, { ...compression, ditheringType: 'noise' }, 1.0, RESOLUTION);
     expect(sink.ints.get('u_ditherType')).toBe(2);
   });
 
   it('brand: inyecta la paleta IDO y la intensidad del grade', () => {
     const sink = new CaptureSink();
-    applyBrandUniforms(sink, { gradeAmount: 0.75 });
+    const { brand } = cloneDefaultParams();
+    applyBrandUniforms(sink, { ...brand, gradeAmount: 0.75 }, 1.0, RESOLUTION);
     expect(sink.vec3s.get('u_idoShadow')).toEqual(hexToRgb01(IDO_GRADE_PALETTE.shadow));
     expect(sink.vec3s.get('u_idoMid')).toEqual(hexToRgb01(IDO_GRADE_PALETTE.mid));
     expect(sink.vec3s.get('u_idoHighlight')).toEqual(hexToRgb01(IDO_GRADE_PALETTE.highlight));
-    expect(sink.floats.get('u_idoGrade')).toBe(0.75);
+    // smooth01(0.75) = 0.5625
+    expect(sink.floats.get('u_idoGrade')).toBeCloseTo(0.5625, 6);
   });
 });

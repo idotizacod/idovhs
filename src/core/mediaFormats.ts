@@ -59,10 +59,11 @@ export interface OutputFormat {
 export const PNG_FORMAT: OutputFormat = { mimeType: 'image/png', extension: 'png' };
 
 /**
- * Elige el mejor códec disponible. Se prefiere MP4; WebM es el fallback de
- * navegadores como Firefox, que no pueden grabar `video/mp4`.
+ * Elige el mejor códec disponible. Si se indica un formato preferido, se intentan
+ * primero sus contenedores (p. ej. preservar MP4 al exportar un MP4 de origen).
+ * WebM es el fallback de navegadores como Firefox, que no pueden grabar `video/mp4`.
  */
-export function pickVideoFormat(): OutputFormat {
+export function pickVideoFormat(preferred?: OutputExtension): OutputFormat {
   if (typeof MediaRecorder === 'undefined') {
     throw new Error('La grabación de vídeo no está disponible en este navegador');
   }
@@ -73,7 +74,11 @@ export function pickVideoFormat(): OutputFormat {
     { mimeType: 'video/webm;codecs=vp9', extension: 'webm' },
     { mimeType: 'video/webm', extension: 'webm' },
   ];
-  const found = candidates.find((candidate) => MediaRecorder.isTypeSupported(candidate.mimeType));
+  const ordered =
+    preferred === undefined
+      ? candidates
+      : [...candidates.filter((candidate) => candidate.extension === preferred), ...candidates.filter((candidate) => candidate.extension !== preferred)];
+  const found = ordered.find((candidate) => MediaRecorder.isTypeSupported(candidate.mimeType));
   if (found === undefined) {
     throw new Error('Este navegador no puede grabar MP4 ni WebM');
   }

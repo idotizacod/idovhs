@@ -6,10 +6,10 @@ Motor multimedia retro en tiempo real basado en **TypeScript estricto + WebGL 2.
 
 Incluido:
 
-- Pipeline GPU de 3 pasos (Óptica → VHS → Compresión) + pass final a pantalla.
+- Pipeline GPU de 6 pasos (Ajustes de imagen → Óptica → VHS → Acabado/CRT y superficie → Compresión digital → Datamosh simulado) + pass final a pantalla, con edición base al inicio y degradación ordenada de analógico a digital.
 - Fuentes: imagen (**JPG/PNG**), vídeo (**MP4**), cámara web y patrón procedural.
-- Exportación: **PNG** del fotograma actual y **MP4** del viewport (WebM como fallback de navegador).
-- Consola de hardware con cuatro racks (incluido el **filtro Idotiza**), teclado accesible y layout responsive.
+- Exportación: **PNG** del fotograma actual y **MP4** del viewport o del vídeo cargado (WebM como fallback de navegador).
+- Consola de hardware con seis racks: ajustes base de imagen y, a continuación, cadena de degradación ordenada de analógico a digital (Óptica/Sensor, VHS, Acabado/CRT/Superficie, Compresión, Datamosh simulado), teclado accesible y layout responsive.
 - Sistema de marca reutilizable en `brand/`: paquete agnóstico (tokens CSS/TS/JSON + chunk GLSL + assets), sincronizable como fuente única.
 - Resolución adaptativa (downscale automático a 720p si baja el FPS).
 - Recuperación ante pérdida del contexto WebGL.
@@ -25,7 +25,7 @@ Pendiente (fuera del MVP): render offline cuadro a cuadro a resolución nativa, 
 | Salida | `.png` | `canvas.toBlob()` capturado dentro del bucle de render. |
 | Salida | `.mp4` | `MediaRecorder` sobre `canvas.captureStream(30)`. Firefox usa `.webm` por falta de soporte MP4. |
 
-La exportación de vídeo es **en tiempo real**: graba lo que se ve en el viewport mientras se reproduce. No incluye audio (`captureStream()` del canvas solo entrega vídeo) y usa la resolución adaptativa del preview.
+Al cargar un vídeo de archivo, el preview reproduce en bucle los **primeros 10 segundos** (o la duración total si es menor) para evaluar el efecto rápidamente. Al exportar ese vídeo, se graba automáticamente la **duración completa del original** intentando conservar el formato (MP4). Para cámara, imagen o patrón, la exportación sigue siendo manual en tiempo real. No incluye audio (`captureStream()` del canvas solo entrega vídeo) y usa la resolución adaptativa del preview.
 
 ## Requisitos
 
@@ -54,29 +54,32 @@ npm run preview   # servir dist/
 ```
 Entrada (archivo/cámara/patrón)
   → Textura GPU
-  → FBO A: digicam.frag.glsl   (ISO, rolloff CCD, flash/bloom)
-  → FBO B: vhs.frag.glsl       (jitter, barril, aberración, ruido, scanlines)
-  → FBO A: compression.frag.glsl (macrobloques, cuantización, Bayer)
-  → FBO B: brand.frag.glsl + brand/grade.glsl (filtro Idotiza)
+  → FBO A: imageAdjust.frag.glsl (brillo, contraste, saturación, curva de blancos, HSL, nitidez)
+  → FBO B: digicam.frag.glsl   (ISO, rolloff CCD, flash/bloom, óptica/sensor)
+  → FBO A: vhs.frag.glsl       (degradación analógica de cinta/señal)
+  → FBO B: brand.frag.glsl + brand/grade.glsl (acabado CRT/superficie analógica y marca)
+  → FBO A: compression.frag.glsl (compresión y artefactos digitales)
+  → FBO B: datamosh.frag.glsl  (mosh simulado digital/temporal con historial de frame)
+  → Historial persistente (copia del frame final para el siguiente ciclo)
   → Framebuffer por defecto (passthrough)
 ```
 
-Cada pass es un `ShaderProgram` con uniforms inyectados desde los contratos de datos (`src/types.ts`). `RenderPipeline` posee dos texturas RGBA8 y dos FBOs que se reciclan, sin round-trips CPU↔GPU.
+Cada pass es un `ShaderProgram` con uniforms inyectados desde los contratos de datos (`src/types.ts`). `RenderPipeline` posee dos texturas/FBOs RGBA8 en ping-pong para la cadena y una textura/FBO adicional persistente para el historial temporal, sin round-trips CPU↔GPU.
 
 ### Estructura
 
 | Ruta | Responsabilidad |
 | --- | --- |
-| `src/core/RenderPipeline.ts` | VAO del quad, FBOs ping-pong, resize, renderQuad, dispose |
+| `src/core/RenderPipeline.ts` | VAO del quad, FBOs ping-pong, historial temporal, resize, renderQuad, dispose |
 | `src/core/ShaderProgram.ts` | Compilación GLSL, caché de uniforms, enlace de texturas |
 | `src/core/MediaSource.ts` | Ingesta de imagen/vídeo/cámara/patrón y upload a textura |
 | `src/core/mediaFormats.ts` | Whitelist de entrada y selección de códec de salida |
-| `src/core/Engine.ts` | Bucle rAF, máquina de estados, cascada de shaders, context loss y exportación PNG/MP4 |
+| `src/core/Engine.ts` | Bucle rAF, máquina de estados, cascada de shaders, historial para datamosh, context loss y exportación PNG/MP4 |
 | `src/core/uniforms.ts` | Mapeo de parámetros TS → uniforms GLSL |
 | `src/core/validators.ts` | Normalización y límites de parámetros |
 | `src/core/adaptiveResolution.ts` | Histéresis FPS → resolución de preview |
-| `src/shaders/*.glsl` | Fragment/vertex shaders GLSL ES 3.00 |
-| `src/core/shaderSources.ts` | Composición de shaders con el chunk de marca |
+| `src/shaders/*.glsl` | Fragment/vertex shaders GLSL ES 3.00 (incluye `datamosh.frag.glsl`) |
+| `src/core/shaderSources.ts` | Composición/importación de shaders de la cadena |
 | `src/config.ts` | Configuración de runtime (`APP_TITLE`, viewport, flags) y parámetros por defecto |
 | `src/ui/controls.ts` | Construcción de los racks y controles |
 | `brand/` | Paquete de marca agnóstico: tokens CSS/TS/JSON, `grade.glsl`, assets (`logo.png`, `sock.svg`) y metadatos (`package.json`) |
@@ -85,11 +88,14 @@ Cada pass es un `ShaderProgram` con uniforms inyectados desde los contratos de d
 
 ## Parámetros
 
-Ver `src/types.ts` para los contratos completos (`DigicamParams`, `VhsParams`, `CompressionParams`, `EngineState`). Rangos:
+Ver `src/types.ts` para los contratos completos (`ImageAdjustParams`, `DigicamParams`, `VhsParams`, `CompressionParams`, `BrandParams`, `DatamoshParams`, `EngineState`). Rangos:
 
-- ISO: 100–6400 · flash: 0–1 · bloom: 1–16
-- tracking: 0–1 · barril: −0.5–0.5 · ruido magnético: 0–1 · color bleed: 0–1 · scanlines: 0–1
-- JPEG: 0.1–1 · bloque: 4/8/16 · niveles de posterización: 2–16 · dither: bayer 4×4 / 8×8 / ruido
+- ajustes de imagen: brillo −1–1 · contraste −1–1 · saturación −1–1 · HSL por color (saturación) rojos/naranjas/amarillos/verdes/cianes/azules/violetas/magentas −1–1 · afilar 0–1
+- ISO: 100–6400 · flash: 0–1 · bloom: 1–16 · aberración cromática: 0–1 · grano por luma: 0–1
+- tracking: 0–1 · barril: −0.5–0.5 · ruido magnético: 0–1 · color bleed: 0–1 · scanlines: 0–1 · chroma delay: 0–1 · sync drift: 0–1 · head switching: 0–1 · dropouts: 0–1 · daño de cinta: 0–1
+- JPEG: 0.1–1 · bloque: 4/8/16 · niveles de posterización: 2–16 · corrupción de bloques: 0–1 · desplazamiento de bloques: 0–1 · dither: bayer 4×4 / 8×8 / ruido
+- acabado: grade 0–1 · CRT master 0–1 · curvatura CRT 0–1 · compensación curvatura CRT 0–1 · scanlines CRT 0–1 · máscara/fósforo 0–1 · viñeta CRT 0–1 · halación CRT 0–1 · convergencia RGB 0–1 · suciedad 0–1 · rayones 0–1 · polvo 0–1
+- datamosh (simulado): intensidad 0–1 · umbral de movimiento 0–1 · bloque 4/8/16 · feedback temporal 0–1
 
 ## Idotiza (Módulo 4.1)
 

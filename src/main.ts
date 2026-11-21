@@ -21,6 +21,11 @@ const contextLost = element<HTMLElement>('context-lost');
 const fileInput = element<HTMLInputElement>('file-input');
 fileInput.accept = INPUT_ACCEPT;
 
+const timelineBar = element<HTMLElement>('timeline-bar');
+const timelineInput = element<HTMLInputElement>('timeline');
+const timeCurrent = element<HTMLElement>('time-current');
+const timeDuration = element<HTMLElement>('time-duration');
+
 const params = cloneDefaultParams();
 
 // Logo compartido: el mismo archivo alimenta cabecera y favicon.
@@ -39,6 +44,60 @@ function showError(message: string): void {
 function clearError(): void {
   errorMessage.textContent = '';
   errorMessage.hidden = true;
+}
+
+function formatTime(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    return '0:00';
+  }
+  const whole = Math.floor(seconds);
+  const minutes = Math.floor(whole / 60);
+  const secs = whole % 60;
+  return `${minutes}:${String(secs).padStart(2, '0')}`;
+}
+
+function getTimelineDuration(): number {
+  if (!engine.canExportSourceVideo()) {
+    return 0;
+  }
+  // Durante exportación completa del archivo, la barra refleja la duración original.
+  if (engine.isExportingSourceVideo()) {
+    return engine.getSourceDuration();
+  }
+  // En preview mostramos el tramo de 10 s (o la duración total si es menor).
+  const preview = engine.getSourcePreviewDuration();
+  if (preview > 0) {
+    return preview;
+  }
+  return engine.getSourceDuration();
+}
+
+let scrubbingTimeline = false;
+let wasPlayingBeforeScrub = false;
+
+function updateTimeline(): void {
+  const duration = getTimelineDuration();
+  const show = duration > 0.01;
+  timelineBar.hidden = !show;
+
+  if (!show) {
+    requestAnimationFrame(updateTimeline);
+    return;
+  }
+
+  const state = engine.state;
+  const current = Math.max(0, Math.min(duration, state.currentTime));
+  if (timelineInput.max !== String(duration)) {
+    timelineInput.max = String(duration);
+  }
+  if (!scrubbingTimeline) {
+    timelineInput.value = String(current);
+    timeCurrent.textContent = formatTime(current);
+  }
+  timeDuration.textContent = formatTime(duration);
+  timelineInput.disabled = engine.isRecording();
+
+  requestAnimationFrame(updateTimeline);
 }
 
 function showStats(stats: RenderStats): void {
@@ -82,6 +141,40 @@ fileInput.addEventListener('change', () => {
     void engine.loadFile(file);
   }
 });
+
+timelineInput.addEventListener('pointerdown', () => {
+  if (timelineBar.hidden || timelineInput.disabled) {
+    return;
+  }
+  scrubbingTimeline = true;
+  wasPlayingBeforeScrub = engine.status === 'playing';
+  engine.send('SCRUB_START');
+});
+
+timelineInput.addEventListener('input', () => {
+  if (timelineBar.hidden) {
+    return;
+  }
+  const value = Number(timelineInput.value);
+  if (Number.isFinite(value)) {
+    engine.seek(value);
+    timeCurrent.textContent = formatTime(value);
+  }
+});
+
+const finishScrub = (): void => {
+  if (!scrubbingTimeline) {
+    return;
+  }
+  scrubbingTimeline = false;
+  engine.send('SCRUB_END');
+  if (wasPlayingBeforeScrub) {
+    engine.send('PLAY');
+  }
+};
+timelineInput.addEventListener('change', finishScrub);
+timelineInput.addEventListener('pointerup', finishScrub);
+timelineInput.addEventListener('pointercancel', finishScrub);
 
 const exportPngButton = element<HTMLButtonElement>('btn-export-png');
 const exportMp4Button = element<HTMLButtonElement>('btn-export-mp4');
@@ -130,6 +223,23 @@ exportMp4Button.addEventListener('click', () => {
       });
     return;
   }
+
+  // Si hay un vídeo de archivo cargado, exportarlo completo con su duración original.
+  if (engine.canExportSourceVideo()) {
+    exportPngButton.disabled = true;
+    exportMp4Button.disabled = true;
+    exportMp4Button.textContent = 'EXPORTANDO…';
+    engine.exportSourceVideo()
+      .then(({ blob, format }) => downloadBlob(blob, format.extension))
+      .catch(reportError)
+      .finally(() => {
+        exportMp4Button.disabled = false;
+        exportMp4Button.textContent = 'EXPORTAR MP4';
+        exportPngButton.disabled = false;
+      });
+    return;
+  }
+
   try {
     const format = engine.startVideoExport();
     exportPngButton.disabled = true;
@@ -141,4 +251,5 @@ exportMp4Button.addEventListener('click', () => {
 
 engine.send('PLAY');
 engine.start();
+requestAnimationFrame(updateTimeline);
 window.addEventListener('beforeunload', () => engine.dispose());

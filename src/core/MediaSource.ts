@@ -3,6 +3,9 @@ import { validateInputFile } from './mediaFormats';
 
 type UploadSource = HTMLCanvasElement | HTMLImageElement | HTMLVideoElement;
 
+const FILE_VIDEO_PREVIEW_SECONDS = 10;
+const END_EPSILON = 0.05;
+
 /** Ingesta de medios: convierte archivos, cámara o un patrón procedural en una textura GPU. */
 export class MediaSource {
   private readonly gpuTexture: WebGLTexture;
@@ -14,6 +17,9 @@ export class MediaSource {
   private objectUrl: string | null = null;
   private needsUpload = true;
   private kind: SourceKind = 'procedural';
+  private fileVideo = false;
+  private previewLimitSeconds = 0;
+  private previewLimited = true;
 
   constructor(private readonly gl: WebGL2RenderingContext) {
     const texture = gl.createTexture();
@@ -76,6 +82,44 @@ export class MediaSource {
     return this.video?.currentTime ?? 0;
   }
 
+  /** Duración del tramo de preview para vídeos de archivo (máx. 10 s). */
+  get previewDuration(): number {
+    if (!this.fileVideo) {
+      return this.duration;
+    }
+    return this.previewLimitSeconds;
+  }
+
+  /** Indica si la fuente actual es un vídeo de archivo apto para exportación completa. */
+  isFileVideoSource(): boolean {
+    return this.fileVideo && this.video !== null;
+  }
+
+  /** Activa o desactiva el límite de preview (10 s) para vídeos de archivo. */
+  setPreviewLimited(limited: boolean): void {
+    this.previewLimited = limited;
+    if (!limited) {
+      this.needsUpload = true;
+      return;
+    }
+    if (this.fileVideo && this.video !== null && this.previewLimitSeconds > 0 && this.video.currentTime >= this.previewLimitSeconds) {
+      this.video.currentTime = 0;
+      this.needsUpload = true;
+    }
+  }
+
+  /** True cuando un vídeo de archivo en modo completo llegó al final. */
+  hasReachedSourceEnd(): boolean {
+    if (!this.fileVideo || this.video === null) {
+      return false;
+    }
+    const duration = this.duration;
+    if (duration <= 0) {
+      return false;
+    }
+    return this.video.ended || this.video.currentTime >= duration - END_EPSILON;
+  }
+
   loadProcedural(): void {
     this.releaseCurrentSource();
     this.kind = 'procedural';
@@ -94,11 +138,18 @@ export class MediaSource {
       if (input.kind === 'video') {
         const video = document.createElement('video');
         video.muted = true;
-        video.loop = true;
+        // El bucle se gestiona manualmente para permitir preview de 10 s y exportación completa.
+        video.loop = false;
         video.playsInline = true;
+        video.preload = 'auto';
         this.video = video;
         this.kind = 'video';
+        this.fileVideo = true;
         await this.waitForMetadata(video, url);
+        const duration = Number.isFinite(video.duration) ? video.duration : 0;
+        this.previewLimitSeconds = duration > 0 ? Math.min(FILE_VIDEO_PREVIEW_SECONDS, duration) : 0;
+        this.previewLimited = true;
+        this.needsUpload = true;
         await video.play().catch(() => undefined);
         return;
       }
@@ -121,6 +172,9 @@ export class MediaSource {
       this.video = null;
       this.image = null;
       this.kind = 'procedural';
+      this.fileVideo = false;
+      this.previewLimitSeconds = 0;
+      this.previewLimited = true;
       URL.revokeObjectURL(url);
       this.objectUrl = null;
       this.needsUpload = true;
@@ -172,7 +226,8 @@ export class MediaSource {
 
   seek(time: number): void {
     if (this.video !== null && Number.isFinite(time)) {
-      this.video.currentTime = Math.max(0, Math.min(this.duration, time));
+      const max = this.fileVideo && this.previewLimited && this.previewLimitSeconds > 0 ? this.previewLimitSeconds : this.duration;
+      this.video.currentTime = Math.max(0, Math.min(max, time));
       this.needsUpload = true;
     }
   }
@@ -186,10 +241,20 @@ export class MediaSource {
     }
     if (this.kind === 'video' || this.kind === 'camera') {
       const video = this.video;
-      if (video !== null && video.readyState >= 2 && (!video.paused || this.needsUpload)) {
-        this.upload(video);
-        this.needsUpload = false;
-        return true;
+      if (video !== null && video.readyState >= 2) {
+        if (this.fileVideo && this.previewLimited && this.previewLimitSeconds > 0 && video.currentTime >= this.previewLimitSeconds - END_EPSILON) {
+          // Preview rápido: reproducir solo los primeros N segundos en bucle.
+          video.currentTime = 0;
+          if (video.paused) {
+            void video.play().catch(() => undefined);
+          }
+          this.needsUpload = true;
+        }
+        if (!video.paused || this.needsUpload) {
+          this.upload(video);
+          this.needsUpload = false;
+          return true;
+        }
       }
       return false;
     }
@@ -265,6 +330,9 @@ export class MediaSource {
     }
     this.video = null;
     this.image = null;
+    this.fileVideo = false;
+    this.previewLimitSeconds = 0;
+    this.previewLimited = true;
     this.mediaStream?.getTracks().forEach((track) => track.stop());
     this.mediaStream = null;
     if (this.objectUrl !== null) {

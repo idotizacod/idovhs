@@ -5,10 +5,13 @@ in vec2 v_texCoord;
 out vec4 fragColor;
 
 uniform sampler2D u_texture;
-uniform float u_jpegQuality;        // [0.1-1]
-uniform float u_blockSize;          // 4, 8 o 16
-uniform int u_ditherType;           // 0 bayer4, 1 bayer8, 2 ruido
-uniform float u_posterizationLevels;// [2-16]
+uniform float u_jpegQuality;          // [0.1-1]
+uniform float u_blockSize;            // 4, 8 o 16
+uniform int u_ditherType;             // 0 bayer4, 1 bayer8, 2 ruido
+uniform float u_posterizationLevels;  // [2-16]
+uniform float u_blockCorruption;      // [0-1]
+uniform float u_blockCorruptionShift; // [0-1]
+uniform float u_time;
 uniform vec2 u_resolution;
 
 const int BAYER4[16] = int[16](
@@ -33,9 +36,37 @@ float hash(vec2 p) {
 }
 
 void main() {
-  vec2 pixel = v_texCoord * u_resolution;
-  ivec2 cell = ivec2(floor(pixel));
-  vec3 color = max(texture(u_texture, v_texCoord).rgb, vec3(0.0));
+  // Estado neutro: preservar imagen natural sin cuantización/dithering.
+  if (u_blockCorruption <= 0.001 && u_jpegQuality >= 0.999 && u_posterizationLevels >= 15.999) {
+    fragColor = vec4(clamp(texture(u_texture, v_texCoord).rgb, 0.0, 1.0), 1.0);
+    return;
+  }
+
+  vec2 sampleUv = v_texCoord;
+
+  // Corrupción por bloques: desplaza o repite tiles completos de forma temporal.
+  if (u_blockCorruption > 0.001) {
+    float bsz = max(u_blockSize, 4.0);
+    vec2 blockId = floor(v_texCoord * u_resolution / bsz);
+    float tSlot = floor(u_time * 10.0);
+    float rnd = hash(blockId + vec2(tSlot, 3.7));
+    if (rnd < u_blockCorruption * 0.7) {
+      vec2 shift = vec2(
+        hash(blockId + vec2(tSlot, 11.1)) - 0.5,
+        hash(blockId + vec2(tSlot, 23.3)) - 0.5
+      );
+      shift *= u_blockCorruptionShift * 0.3;
+      // A veces repite un bloque cercano en vez de desplazar suavemente.
+      if (hash(blockId + vec2(tSlot, 41.9)) > 0.6) {
+        shift = floor(shift * 6.0) / 6.0;
+      }
+      sampleUv = clamp(v_texCoord + shift, 0.0, 1.0);
+    }
+  }
+
+  vec2 pixel = sampleUv * u_resolution;
+  ivec2 cell = ivec2(floor(v_texCoord * u_resolution));
+  vec3 color = max(texture(u_texture, clamp(sampleUv, 0.0, 1.0)).rgb, vec3(0.0));
 
   // Macrobloques MPEG: muestreo forzado al centro de cada bloque.
   vec2 snappedUv = (floor(pixel / u_blockSize) + 0.5) * u_blockSize / u_resolution;

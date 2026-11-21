@@ -122,17 +122,177 @@ function createSelect<T extends string>(
   return { reset };
 }
 
-/** Construye los cuatro racks y devuelve un reset que restaura valores y parámetros. */
+/** Construye los racks de parámetros y devuelve un reset que restaura valores y parámetros. */
 export function buildControls(params: EngineParams, engine: Engine): { reset: () => void } {
   const controls: BoundControl[] = [];
+  const imageAdjust = document.getElementById('rack-image-adjust');
   const digicam = document.getElementById('rack-digicam');
   const vhs = document.getElementById('rack-vhs');
   const compression = document.getElementById('rack-compression');
   const brand = document.getElementById('rack-brand');
+  const datamosh = document.getElementById('rack-datamosh');
 
-  if (digicam === null || vhs === null || compression === null || brand === null) {
+  if (
+    imageAdjust === null ||
+    digicam === null ||
+    vhs === null ||
+    compression === null ||
+    brand === null ||
+    datamosh === null
+  ) {
     throw new Error('No se encontraron los contenedores de los racks');
   }
+
+  const hslDropdown = document.createElement('details');
+  hslDropdown.className = 'control-dropdown';
+  const hslSummary = document.createElement('summary');
+  hslSummary.textContent = 'HSL SATURACIÓN (POR COLOR)';
+  const hslBody = document.createElement('div');
+  hslBody.className = 'control-dropdown-body';
+  hslDropdown.append(hslSummary, hslBody);
+
+  controls.push(
+    createSlider(
+      imageAdjust,
+      {
+        label: 'BRILLO',
+        min: -1,
+        max: 1,
+        step: 0.01,
+        value: params.imageAdjust.brightness,
+      },
+      (value) => engine.setImageAdjust({ brightness: value }),
+    ),
+    createSlider(
+      imageAdjust,
+      {
+        label: 'CONTRASTE',
+        min: -1,
+        max: 1,
+        step: 0.01,
+        value: params.imageAdjust.contrast,
+      },
+      (value) => engine.setImageAdjust({ contrast: value }),
+    ),
+    createSlider(
+      imageAdjust,
+      {
+        label: 'SATURACIÓN',
+        min: -1,
+        max: 1,
+        step: 0.01,
+        value: params.imageAdjust.saturation,
+      },
+      (value) => engine.setImageAdjust({ saturation: value }),
+    ),
+  );
+
+  imageAdjust.append(hslDropdown);
+
+  controls.push(
+    createSlider(
+      hslBody,
+      {
+        label: 'ROJOS',
+        min: -1,
+        max: 1,
+        step: 0.01,
+        value: params.imageAdjust.hslSatRed,
+      },
+      (value) => engine.setImageAdjust({ hslSatRed: value }),
+    ),
+    createSlider(
+      hslBody,
+      {
+        label: 'NARANJAS',
+        min: -1,
+        max: 1,
+        step: 0.01,
+        value: params.imageAdjust.hslSatOrange,
+      },
+      (value) => engine.setImageAdjust({ hslSatOrange: value }),
+    ),
+    createSlider(
+      hslBody,
+      {
+        label: 'AMARILLOS',
+        min: -1,
+        max: 1,
+        step: 0.01,
+        value: params.imageAdjust.hslSatYellow,
+      },
+      (value) => engine.setImageAdjust({ hslSatYellow: value }),
+    ),
+    createSlider(
+      hslBody,
+      {
+        label: 'VERDES',
+        min: -1,
+        max: 1,
+        step: 0.01,
+        value: params.imageAdjust.hslSatGreen,
+      },
+      (value) => engine.setImageAdjust({ hslSatGreen: value }),
+    ),
+    createSlider(
+      hslBody,
+      {
+        label: 'CIANES',
+        min: -1,
+        max: 1,
+        step: 0.01,
+        value: params.imageAdjust.hslSatCyan,
+      },
+      (value) => engine.setImageAdjust({ hslSatCyan: value }),
+    ),
+    createSlider(
+      hslBody,
+      {
+        label: 'AZULES',
+        min: -1,
+        max: 1,
+        step: 0.01,
+        value: params.imageAdjust.hslSatBlue,
+      },
+      (value) => engine.setImageAdjust({ hslSatBlue: value }),
+    ),
+    createSlider(
+      hslBody,
+      {
+        label: 'VIOLETAS',
+        min: -1,
+        max: 1,
+        step: 0.01,
+        value: params.imageAdjust.hslSatViolet,
+      },
+      (value) => engine.setImageAdjust({ hslSatViolet: value }),
+    ),
+    createSlider(
+      hslBody,
+      {
+        label: 'MAGENTAS',
+        min: -1,
+        max: 1,
+        step: 0.01,
+        value: params.imageAdjust.hslSatMagenta,
+      },
+      (value) => engine.setImageAdjust({ hslSatMagenta: value }),
+    ),
+  );
+
+  controls.push(
+    createSlider(
+      imageAdjust,
+      {
+        label: 'AFILAR IMAGEN',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        value: params.imageAdjust.sharpen,
+      },
+      (value) => engine.setImageAdjust({ sharpen: value }),
+    ),
+  );
 
   controls.push(
     createSlider(
@@ -169,6 +329,28 @@ export function buildControls(params: EngineParams, engine: Engine): { reset: ()
         format: (value) => `${value} px`,
       },
       (value) => engine.setDigicam({ flashBloomRadius: value }),
+    ),
+    createSlider(
+      digicam,
+      {
+        label: 'ABERRACIÓN CROMÁTICA',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        value: params.digicam.chromaAberration,
+      },
+      (value) => engine.setDigicam({ chromaAberration: value }),
+    ),
+    createSlider(
+      digicam,
+      {
+        label: 'GRANO POR LUMA',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        value: params.digicam.lumaGrain,
+      },
+      (value) => engine.setDigicam({ lumaGrain: value }),
     ),
     createSelect(
       digicam,
@@ -241,6 +423,61 @@ export function buildControls(params: EngineParams, engine: Engine): { reset: ()
       },
       (value) => engine.setVhs({ scanlineIntensity: value }),
     ),
+    createSlider(
+      vhs,
+      {
+        label: 'Y/C CHROMA DELAY',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        value: params.vhs.chromaDelay,
+      },
+      (value) => engine.setVhs({ chromaDelay: value }),
+    ),
+    createSlider(
+      vhs,
+      {
+        label: 'SYNC DRIFT',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        value: params.vhs.syncDrift,
+      },
+      (value) => engine.setVhs({ syncDrift: value }),
+    ),
+    createSlider(
+      vhs,
+      {
+        label: 'HEAD SWITCHING',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        value: params.vhs.headSwitching,
+      },
+      (value) => engine.setVhs({ headSwitching: value }),
+    ),
+    createSlider(
+      vhs,
+      {
+        label: 'DROPOUTS',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        value: params.vhs.dropouts,
+      },
+      (value) => engine.setVhs({ dropouts: value }),
+    ),
+    createSlider(
+      vhs,
+      {
+        label: 'DAÑO DE CINTA',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        value: params.vhs.tapeDamage,
+      },
+      (value) => engine.setVhs({ tapeDamage: value }),
+    ),
   );
 
   controls.push(
@@ -277,6 +514,28 @@ export function buildControls(params: EngineParams, engine: Engine): { reset: ()
         value: params.compression.posterizationLevels,
       },
       (value) => engine.setCompression({ posterizationLevels: value }),
+    ),
+    createSlider(
+      compression,
+      {
+        label: 'CORRUPCIÓN DE BLOQUES',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        value: params.compression.blockCorruption,
+      },
+      (value) => engine.setCompression({ blockCorruption: value }),
+    ),
+    createSlider(
+      compression,
+      {
+        label: 'DESPLAZAMIENTO DE BLOQUES',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        value: params.compression.blockCorruptionShift,
+      },
+      (value) => engine.setCompression({ blockCorruptionShift: value }),
     ),
     createSelect(
       compression,
@@ -316,6 +575,175 @@ export function buildControls(params: EngineParams, engine: Engine): { reset: ()
         value: params.brand.gradeAmount,
       },
       (value) => engine.setBrand({ gradeAmount: value }),
+    ),
+    createSlider(
+      brand,
+      {
+        label: 'CRT (MASTER)',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        value: params.brand.crtAmount,
+      },
+      (value) => engine.setBrand({ crtAmount: value }),
+    ),
+    createSlider(
+      brand,
+      {
+        label: 'CURVATURA CRT',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        value: params.brand.crtCurvature,
+      },
+      (value) => engine.setBrand({ crtCurvature: value }),
+    ),
+    createSlider(
+      brand,
+      {
+        label: 'COMPENSACIÓN CURVATURA CRT',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        value: params.brand.crtCompensation,
+      },
+      (value) => engine.setBrand({ crtCompensation: value }),
+    ),
+    createSlider(
+      brand,
+      {
+        label: 'SCANLINES CRT',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        value: params.brand.crtScanlines,
+      },
+      (value) => engine.setBrand({ crtScanlines: value }),
+    ),
+    createSlider(
+      brand,
+      {
+        label: 'MÁSCARA/FÓSFORO',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        value: params.brand.crtMask,
+      },
+      (value) => engine.setBrand({ crtMask: value }),
+    ),
+    createSlider(
+      brand,
+      {
+        label: 'VIÑETA CRT',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        value: params.brand.crtVignette,
+      },
+      (value) => engine.setBrand({ crtVignette: value }),
+    ),
+    createSlider(
+      brand,
+      {
+        label: 'HALACIÓN CRT',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        value: params.brand.crtHalation,
+      },
+      (value) => engine.setBrand({ crtHalation: value }),
+    ),
+    createSlider(
+      brand,
+      {
+        label: 'CONVERGENCIA RGB',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        value: params.brand.crtConvergence,
+      },
+      (value) => engine.setBrand({ crtConvergence: value }),
+    ),
+    createSlider(
+      brand,
+      {
+        label: 'SUCIEDAD',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        value: params.brand.dirtAmount,
+      },
+      (value) => engine.setBrand({ dirtAmount: value }),
+    ),
+    createSlider(
+      brand,
+      {
+        label: 'RAYONES',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        value: params.brand.scratchesAmount,
+      },
+      (value) => engine.setBrand({ scratchesAmount: value }),
+    ),
+    createSlider(
+      brand,
+      {
+        label: 'POLVO',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        value: params.brand.dustAmount,
+      },
+      (value) => engine.setBrand({ dustAmount: value }),
+    ),
+  );
+
+  controls.push(
+    createSlider(
+      datamosh,
+      {
+        label: 'INTENSIDAD DATAMOSH',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        value: params.datamosh.amount,
+      },
+      (value) => engine.setDatamosh({ amount: value }),
+    ),
+    createSlider(
+      datamosh,
+      {
+        label: 'UMBRAL DE MOVIMIENTO',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        value: params.datamosh.motionThreshold,
+      },
+      (value) => engine.setDatamosh({ motionThreshold: value }),
+    ),
+    createSlider(
+      datamosh,
+      {
+        label: 'TAMAÑO DE BLOQUE MOSH',
+        min: 4,
+        max: 16,
+        step: 4,
+        value: params.datamosh.blockSize,
+        format: (value) => `${value}×${value} px`,
+      },
+      (value) => engine.setDatamosh({ blockSize: value }),
+    ),
+    createSlider(
+      datamosh,
+      {
+        label: 'FEEDBACK TEMPORAL',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        value: params.datamosh.feedback,
+      },
+      (value) => engine.setDatamosh({ feedback: value }),
     ),
   );
 

@@ -10,6 +10,8 @@ export class RenderPipeline {
   private quadBuffer: WebGLBuffer | null = null;
   private readonly fbos: WebGLFramebuffer[] = [];
   private readonly textures: WebGLTexture[] = [];
+  private historyFBO: WebGLFramebuffer | null = null;
+  private historyTexture: WebGLTexture | null = null;
   private width: number;
   private height: number;
   private disposed = false;
@@ -45,32 +47,50 @@ export class RenderPipeline {
     gl.bindVertexArray(null);
 
     for (let i = 0; i < 2; i += 1) {
-      const texture = gl.createTexture();
-      if (texture === null) {
-        throw new Error('No se pudo crear la textura del FBO');
-      }
-      gl.bindTexture(gl.TEXTURE_2D, texture);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-
-      const fbo = gl.createFramebuffer();
-      if (fbo === null) {
-        throw new Error('No se pudo crear el framebuffer');
-      }
-      gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
-      this.textures.push(texture);
-      this.fbos.push(fbo);
+      this.createTarget(this.textures, this.fbos);
     }
+
+    // Textura/FBO persistente para historial de frame (datamosh simulado).
+    const historyTextures: WebGLTexture[] = [];
+    const historyFbos: WebGLFramebuffer[] = [];
+    this.createTarget(historyTextures, historyFbos);
+    this.historyTexture = historyTextures[0] ?? null;
+    this.historyFBO = historyFbos[0] ?? null;
+
     this.allocateTextures();
+    this.clearHistory();
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
+
+  private createTarget(textures: WebGLTexture[], fbos: WebGLFramebuffer[]): void {
+    const gl = this.gl;
+    const texture = gl.createTexture();
+    if (texture === null) {
+      throw new Error('No se pudo crear la textura del FBO');
+    }
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    const fbo = gl.createFramebuffer();
+    if (fbo === null) {
+      throw new Error('No se pudo crear el framebuffer');
+    }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+    textures.push(texture);
+    fbos.push(fbo);
   }
 
   private allocateTextures(): void {
     const gl = this.gl;
-    this.textures.forEach((texture) => {
+    const allTextures = [...this.textures];
+    if (this.historyTexture !== null) {
+      allTextures.push(this.historyTexture);
+    }
+    allTextures.forEach((texture) => {
       gl.bindTexture(gl.TEXTURE_2D, texture);
       gl.texImage2D(
         gl.TEXTURE_2D,
@@ -84,12 +104,29 @@ export class RenderPipeline {
         null,
       );
     });
-    this.fbos.forEach((fbo) => {
+
+    const allFbos = [...this.fbos];
+    if (this.historyFBO !== null) {
+      allFbos.push(this.historyFBO);
+    }
+    allFbos.forEach((fbo) => {
       gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
       if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
         throw new Error('Framebuffer incompleto: VRAM insuficiente o formato no soportado');
       }
     });
+  }
+
+  clearHistory(): void {
+    if (this.disposed || this.historyFBO === null) {
+      return;
+    }
+    const gl = this.gl;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.historyFBO);
+    gl.viewport(0, 0, this.width, this.height);
+    gl.clearColor(0, 0, 0, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   }
 
   /** Redimensiona las texturas solo cuando cambian las dimensiones. */
@@ -105,6 +142,7 @@ export class RenderPipeline {
     this.width = nextWidth;
     this.height = nextHeight;
     this.allocateTextures();
+    this.clearHistory();
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
   }
 
@@ -121,6 +159,19 @@ export class RenderPipeline {
 
   getTexture(index: number): WebGLTexture {
     return this.textures[((index % 2) + 2) % 2];
+  }
+
+  bindHistoryTarget(): void {
+    const gl = this.gl;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.historyFBO);
+    gl.viewport(0, 0, this.width, this.height);
+  }
+
+  getHistoryTexture(): WebGLTexture {
+    if (this.historyTexture === null) {
+      throw new Error('Textura de historial no disponible');
+    }
+    return this.historyTexture;
   }
 
   renderQuad(): void {
@@ -140,6 +191,12 @@ export class RenderPipeline {
     const gl = this.gl;
     this.textures.forEach((texture) => gl.deleteTexture(texture));
     this.fbos.forEach((fbo) => gl.deleteFramebuffer(fbo));
+    if (this.historyTexture !== null) {
+      gl.deleteTexture(this.historyTexture);
+    }
+    if (this.historyFBO !== null) {
+      gl.deleteFramebuffer(this.historyFBO);
+    }
     if (this.quadBuffer !== null) {
       gl.deleteBuffer(this.quadBuffer);
     }

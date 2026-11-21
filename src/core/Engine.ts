@@ -3,10 +3,12 @@ import { MAX_PREVIEW_SIZE } from '../config';
 import type {
   BrandParams,
   CompressionParams,
+  DatamoshParams,
   DigicamParams,
   EngineEvent,
   EngineParams,
   EngineState,
+  ImageAdjustParams,
   RenderStats,
   Size,
   VhsParams,
@@ -20,13 +22,17 @@ import { EngineStateMachine } from './stateMachine';
 import {
   applyBrandUniforms,
   applyCompressionUniforms,
+  applyDatamoshUniforms,
   applyDigicamUniforms,
+  applyImageAdjustUniforms,
   applyVhsUniforms,
 } from './uniforms';
 import {
   BRAND_SOURCE,
   COMPRESSION_SOURCE,
+  DATAMOSH_SOURCE,
   DIGICAM_SOURCE,
+  IMAGE_ADJUST_SOURCE,
   PASSTHROUGH_SOURCE,
   VERTEX_SOURCE,
   VHS_SOURCE,
@@ -39,7 +45,7 @@ export interface EngineCallbacks {
   onError?: (message: string) => void;
 }
 
-const PASS_COUNT = 4;
+const PASS_COUNT = 6;
 const STATS_INTERVAL_MS = 200;
 const FPS_WINDOW = 60;
 const RECORD_FPS = 30;
@@ -86,6 +92,8 @@ export class Engine {
   private recordResolve: ((result: VideoRecordingResult) => void) | null = null;
   private recordReject: ((reason: Error) => void) | null = null;
   private resumeAfterExport = false;
+  private recordingFullSource = false;
+  private stoppingFullSourceRecording = false;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -122,10 +130,12 @@ export class Engine {
     this.pipeline = new RenderPipeline(gl, this.canvas.width, this.canvas.height);
     this.source = new MediaSource(gl);
     this.programs = [
+      new ShaderProgram(gl, VERTEX_SOURCE, IMAGE_ADJUST_SOURCE, 'image-adjust'),
       new ShaderProgram(gl, VERTEX_SOURCE, DIGICAM_SOURCE, 'digicam'),
       new ShaderProgram(gl, VERTEX_SOURCE, VHS_SOURCE, 'vhs'),
-      new ShaderProgram(gl, VERTEX_SOURCE, COMPRESSION_SOURCE, 'compression'),
       new ShaderProgram(gl, VERTEX_SOURCE, BRAND_SOURCE, 'brand'),
+      new ShaderProgram(gl, VERTEX_SOURCE, COMPRESSION_SOURCE, 'compression'),
+      new ShaderProgram(gl, VERTEX_SOURCE, DATAMOSH_SOURCE, 'datamosh'),
     ];
     this.finalProgram = new ShaderProgram(gl, VERTEX_SOURCE, PASSTHROUGH_SOURCE, 'output');
     this.contextLost = false;
@@ -139,6 +149,7 @@ export class Engine {
     this.pendingCapture?.reject(new Error('Contexto WebGL perdido durante la exportación'));
     this.pendingCapture = null;
     if (this.recorder !== null) {
+      this.recordingFullSource = false;
       void this.stopVideoExport().catch(() => undefined);
     }
   };
@@ -214,6 +225,14 @@ export class Engine {
     this.setParams({ ...this.params, brand: { ...this.params.brand, ...patch } });
   }
 
+  setDatamosh(patch: Partial<DatamoshParams>): void {
+    this.setParams({ ...this.params, datamosh: { ...this.params.datamosh, ...patch } });
+  }
+
+  setImageAdjust(patch: Partial<ImageAdjustParams>): void {
+    this.setParams({ ...this.params, imageAdjust: { ...this.params.imageAdjust, ...patch } });
+  }
+
   send(event: EngineEvent): boolean {
     if (!this.machine.send(event)) {
       return false;
@@ -232,6 +251,7 @@ export class Engine {
         this.source?.pause();
         this.source?.loadProcedural();
         this.elapsed = 0;
+        this.pipeline?.clearHistory();
         break;
       default:
         break;
@@ -249,6 +269,7 @@ export class Engine {
       if (this.machine.current === 'error') {
         this.machine.reset();
       }
+      this.pipeline?.clearHistory();
       this.send('PLAY');
       this.adaptive.reset();
       this.renderNow();
@@ -266,6 +287,7 @@ export class Engine {
       if (this.machine.current === 'error') {
         this.machine.reset();
       }
+      this.pipeline?.clearHistory();
       this.send('PLAY');
       this.adaptive.reset();
       this.renderNow();
@@ -282,6 +304,7 @@ export class Engine {
     if (this.machine.current === 'error') {
       this.machine.reset();
     }
+    this.pipeline?.clearHistory();
     this.send('PAUSE');
     this.adaptive.reset();
   }
@@ -303,8 +326,24 @@ export class Engine {
     return this.recorder !== null;
   }
 
+  canExportSourceVideo(): boolean {
+    return this.source?.isFileVideoSource() === true;
+  }
+
+  isExportingSourceVideo(): boolean {
+    return this.recordingFullSource;
+  }
+
+  getSourcePreviewDuration(): number {
+    return this.source?.previewDuration ?? 0;
+  }
+
+  getSourceDuration(): number {
+    return this.source?.duration ?? 0;
+  }
+
   /** Inicia la grabación del canvas. Devuelve el formato realmente usado. */
-  startVideoExport(): OutputFormat {
+  startVideoExport(preferredFormat?: OutputFormat['extension']): OutputFormat {
     if (this.recorder !== null) {
       throw new Error('Ya hay una grabación en curso');
     }
@@ -315,7 +354,7 @@ export class Engine {
       throw new Error('canvas.captureStream no está disponible en este navegador');
     }
 
-    const format = pickVideoFormat();
+    const format = pickVideoFormat(preferredFormat);
     const stream = this.canvas.captureStream(RECORD_FPS);
     let recorder: MediaRecorder;
     try {
@@ -346,6 +385,7 @@ export class Engine {
       const usedFormat = this.recordFormat ?? format;
       const resolve = this.recordResolve;
       const reject = this.recordReject;
+      const wasFullSource = this.recordingFullSource;
       this.recordStream?.getTracks().forEach((track) => track.stop());
       this.recordStream = null;
       this.recorder = null;
@@ -353,8 +393,17 @@ export class Engine {
       this.recordFormat = null;
       this.recordResolve = null;
       this.recordReject = null;
+      this.recordingFullSource = false;
+      this.stoppingFullSourceRecording = false;
       this.send('EXPORT_END');
+      if (wasFullSource && this.source !== null) {
+        this.source.setPreviewLimited(true);
+        this.source.seek(0);
+      }
       if (this.resumeAfterExport) {
+        this.send('PLAY');
+      } else if (wasFullSource) {
+        // Volver al preview del vídeo tras una exportación automática.
         this.send('PLAY');
       }
       this.resumeAfterExport = false;
@@ -373,6 +422,43 @@ export class Engine {
     return format;
   }
 
+  /**
+   * Exporta automáticamente un vídeo de archivo cargado: reproduce y graba la
+   * duración completa del original, intentando conservar el formato (MP4).
+   */
+  async exportSourceVideo(): Promise<VideoRecordingResult> {
+    if (!this.canExportSourceVideo() || this.source === null) {
+      throw new Error('No hay un vídeo de archivo cargado para exportar');
+    }
+    if (this.recorder !== null) {
+      throw new Error('Ya hay una grabación en curso');
+    }
+
+    this.source.setPreviewLimited(false);
+    this.source.seek(0);
+    // Forzar reproducción desde el inicio para grabar el metraje completo.
+    this.machine.reset();
+    this.send('PLAY');
+
+    const format = this.startVideoExport('mp4');
+    this.recordingFullSource = true;
+    this.stoppingFullSourceRecording = false;
+
+    // startVideoExport() cambió el estado a EXPORT_START; reanudar reproducción del vídeo.
+    this.source.play();
+    if (this.machine.current !== 'exporting') {
+      this.send('PLAY');
+    }
+
+    return new Promise<VideoRecordingResult>((resolve, reject) => {
+      this.recordResolve = resolve;
+      this.recordReject = reject;
+      // Asegurar que el bucle siga vivo aunque el tab pierda foco brevemente.
+      this.start();
+      void format;
+    });
+  }
+
   stopVideoExport(): Promise<VideoRecordingResult> {
     const recorder = this.recorder;
     if (recorder === null) {
@@ -387,6 +473,21 @@ export class Engine {
       this.recordReject = reject;
       recorder.stop();
     });
+  }
+
+  private maybeStopFullSourceRecording(): void {
+    if (!this.recordingFullSource || this.stoppingFullSourceRecording || this.recorder === null || this.source === null) {
+      return;
+    }
+    if (this.source.hasReachedSourceEnd()) {
+      this.stoppingFullSourceRecording = true;
+      // Dar un pequeño margen para que el último frame se capture.
+      window.setTimeout(() => {
+        if (this.recorder !== null && this.recorder.state !== 'inactive') {
+          this.recorder.stop();
+        }
+      }, 120);
+    }
   }
 
   seek(time: number): void {
@@ -455,6 +556,7 @@ export class Engine {
     }
     pipeline.resize(target.width, target.height);
     source.update(this.elapsed);
+    this.maybeStopFullSourceRecording();
 
     let inputTexture = source.texture;
     let writeIndex = -1;
@@ -467,14 +569,19 @@ export class Engine {
       pipeline.bindTarget(writeIndex);
       program.use();
       if (index === 0) {
-        applyDigicamUniforms(program, this.params.digicam, this.elapsed, target);
+        applyImageAdjustUniforms(program, this.params.imageAdjust, target);
       } else if (index === 1) {
+        applyDigicamUniforms(program, this.params.digicam, this.elapsed, target);
+      } else if (index === 2) {
         applyVhsUniforms(program, this.params.vhs, this.elapsed, this.frame, target);
         program.setVec2('u_opticalCenter', this.opticalCenter[0], this.opticalCenter[1]);
-      } else if (index === 2) {
-        applyCompressionUniforms(program, this.params.compression, target);
+      } else if (index === 3) {
+        applyBrandUniforms(program, this.params.brand, this.elapsed, target);
+      } else if (index === 4) {
+        applyCompressionUniforms(program, this.params.compression, this.elapsed, target);
       } else {
-        applyBrandUniforms(program, this.params.brand);
+        applyDatamoshUniforms(program, this.params.datamosh, this.elapsed, target);
+        program.bindTexture('u_history', pipeline.getHistoryTexture(), 1);
       }
       program.bindTexture('u_texture', inputTexture, 0);
       pipeline.renderQuad();
@@ -482,6 +589,12 @@ export class Engine {
     }
 
     pipeline.bindTarget(null);
+    output.use();
+    output.bindTexture('u_texture', inputTexture, 0);
+    pipeline.renderQuad();
+
+    // Persistir frame final para el siguiente ciclo de datamosh simulado.
+    pipeline.bindHistoryTarget();
     output.use();
     output.bindTexture('u_texture', inputTexture, 0);
     pipeline.renderQuad();
