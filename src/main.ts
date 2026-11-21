@@ -253,3 +253,9 @@ engine.send('PLAY');
 engine.start();
 requestAnimationFrame(updateTimeline);
 window.addEventListener('beforeunload', () => engine.dispose());
+
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => undefined);
+  });
+}
