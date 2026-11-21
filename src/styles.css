@@ -306,7 +306,6 @@ body::before {
 }
 
 #viewport {
-  aspect-ratio: 16 / 9;
   background: var(--ido-negro);
   display: block;
   height: auto;
