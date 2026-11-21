@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light" />
+    <meta
+      name="description"
+      content="Idotiza — consola DIY de procesamiento multimedia retro en tiempo real con WebGL 2.0"
+    />
+    <meta name="theme-color" content="#f5f5f5" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="IDOVHS" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <title>IDOVHS</title>
+    <script type="module" crossorigin src="./assets/index-C2RvpT-b.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-RYb66rJ7.css">
+  </head>
+  <body>
+    <div id="app">
+      <header class="topbar">
+        <div class="brand">
+          <img id="brand-mark" class="brand-mark" alt="Logo IDOVHS" />
+          <div>
+            <h1>IDO<span>VHS</span></h1>
+            <p class="brand-note">idotiza</p>
+          </div>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <section class="viewport-panel" aria-label="Vista previa">
+          <div class="panel-heading">
+            <div class="source-bar" role="group" aria-label="Fuente de medios">
+              <label class="btn btn-file" for="file-input">
+                📁 CARGAR ARCHIVO
+                <input id="file-input" type="file" accept=".jpg,.jpeg,.png,.mp4" hidden />
+              </label>
+              <button id="btn-export-png" class="btn" type="button" title="Exportar el fotograma actual como PNG">
+                EXPORTAR PNG
+              </button>
+              <div id="video-export-control" class="video-export-control">
+                <button
+                  id="btn-export-video"
+                  class="btn"
+                  type="button"
+                  title="Exportar vídeo: elige el formato de salida y confirma para renderizar automáticamente"
+                >
+                  EXPORTAR VIDEO
+                </button>
+                <div id="video-export-chooser" class="video-export-chooser" hidden>
+                  <span class="export-label">FORMATO:</span>
+                  <button id="btn-format-mp4" class="btn btn-toggle" type="button" data-format="mp4">MP4</button>
+                  <button id="btn-format-webm" class="btn btn-toggle" type="button" data-format="webm">WEBM</button>
+                  <button id="btn-export-confirm" class="btn btn-primary" type="button" disabled>CONFIRMAR</button>
+                  <button id="btn-export-cancel" class="btn btn-muted" type="button">CANCELAR</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="canvas-frame">
+            <canvas id="viewport" width="1280" height="720" aria-label="Vista previa del efecto"></canvas>
+            <div id="context-lost" class="context-lost" hidden>
+              <strong>CONTEXTO WEBGL PERDIDO</strong>
+              <span>Reinicializando pipeline…</span>
+            </div>
+          </div>
+          <div id="timeline-bar" class="timeline-bar" hidden>
+            <span id="time-current" class="time-label">0:00</span>
+            <input
+              id="timeline"
+              class="timeline-slider"
+              type="range"
+              min="0"
+              max="0"
+              step="0.01"
+              value="0"
+              aria-label="Línea de tiempo de reproducción"
+            />
+            <span id="time-duration" class="time-label">0:00</span>
+          </div>
+          <div class="transport" role="group" aria-label="Controles de reproducción">
+            <button id="btn-play" class="btn btn-primary" type="button" aria-label="Reproducir">▶ PLAY</button>
+            <button id="btn-pause" class="btn" type="button" aria-label="Pausar">❚❚ PAUSE</button>
+            <button id="btn-reset" class="btn" type="button">↺ RESET</button>
+            <span id="status-pill" class="status-pill" role="status">IDLE</span>
+          </div>
+          <p id="error-message" class="error-message" role="alert" hidden></p>
+        </section>
+
+        <aside class="racks" aria-label="Módulos de procesamiento">
+          <details class="rack" open>
+            <summary>
+              <span class="rack-index">RACK 01</span>
+              <span>AJUSTES DE IMAGEN <small>BRILLO · CONTRASTE · COLOR · NITIDEZ</small></span>
+            </summary>
+            <div id="rack-image-adjust" class="rack-body"></div>
+          </details>
+
+          <details class="rack" open>
+            <summary>
+              <span class="rack-index">RACK 02</span>
+              <span>ÓPTICA Y SENSOR <small>DIGICAM ENGINE</small></span>
+            </summary>
+            <div id="rack-digicam" class="rack-body"></div>
+          </details>
+
+          <details class="rack" open>
+            <summary>
+              <span class="rack-index">RACK 03</span>
+              <span>CANAL ANALÓGICO <small>VHS ENGINE</small></span>
+            </summary>
+            <div id="rack-vhs" class="rack-body"></div>
+          </details>
+
+          <details class="rack rack-brand" open>
+            <summary>
+              <span class="rack-index">RACK 04</span>
+              <span>ACABADO Y MARCA <small>CRT · SUPERFICIE · ANALÓGICO</small></span>
+            </summary>
+            <div id="rack-brand" class="rack-body"></div>
+          </details>
+
+          <details class="rack" open>
+            <summary>
+              <span class="rack-index">RACK 05</span>
+              <span>COMPRESIÓN Y ARTEFACTOS <small>DIGITAL ENGINE</small></span>
+            </summary>
+            <div id="rack-compression" class="rack-body"></div>
+          </details>
+
+          <details class="rack rack-datamosh" open>
+            <summary>
+              <span class="rack-index">RACK 06</span>
+              <span>DATAMOSH <small>SIMULADO · DIGITAL/TEMPORAL</small></span>
+            </summary>
+            <div id="rack-datamosh" class="rack-body"></div>
+          </details>
+        </aside>
+      </main>
+
+      <footer class="footer">
+        <span>CHAIN: IMAGE ADJUST → OPTICS → VHS → ACABADO/CRT → COMPRESSION → DATAMOSH → OUTPUT</span>
+        <span>IDOVHS · DIY / FANZINE / 2000 · WebGL 2.0 · TypeScript strict</span>
+      </footer>
+    </div>
+  </body>
+</html>
