@@ -39,9 +39,23 @@
               <button id="btn-export-png" class="btn" type="button" title="Exportar el fotograma actual como PNG">
                 EXPORTAR PNG
               </button>
-              <button id="btn-export-mp4" class="btn" type="button" title="Si hay un vídeo cargado, lo exporta completo con la duración original; si no, graba el viewport manualmente">
-                EXPORTAR MP4
-              </button>
+              <div id="video-export-control" class="video-export-control">
+                <button
+                  id="btn-export-video"
+                  class="btn"
+                  type="button"
+                  title="Exportar vídeo: elige el formato de salida y confirma para renderizar automáticamente"
+                >
+                  EXPORTAR VIDEO
+                </button>
+                <div id="video-export-chooser" class="video-export-chooser" hidden>
+                  <span class="export-label">FORMATO:</span>
+                  <button id="btn-format-mp4" class="btn btn-toggle" type="button" data-format="mp4">MP4</button>
+                  <button id="btn-format-webm" class="btn btn-toggle" type="button" data-format="webm">WEBM</button>
+                  <button id="btn-export-confirm" class="btn btn-primary" type="button" disabled>CONFIRMAR</button>
+                  <button id="btn-export-cancel" class="btn btn-muted" type="button">CANCELAR</button>
+                </div>
+              </div>
             </div>
           </div>
           <div class="canvas-frame">

@@ -86,6 +86,7 @@ const PASS_COUNT = 6;
 const STATS_INTERVAL_MS = 200;
 const FPS_WINDOW = 60;
 const RECORD_FPS = 30;
+const AUTO_EXPORT_DURATION_SECONDS = 5;
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -131,6 +132,7 @@ export class Engine {
   private resumeAfterExport = false;
   private recordingFullSource = false;
   private stoppingFullSourceRecording = false;
+  private autoStopTimer: number | null = null;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -386,7 +388,10 @@ export class Engine {
   }
 
   /** Inicia la grabación del canvas. Devuelve el formato realmente usado. */
-  startVideoExport(preferredFormat?: OutputFormat['extension']): OutputFormat {
+  startVideoExport(
+    preferredFormat?: OutputFormat['extension'],
+    options?: { autoStopMs?: number; resumeAfterExport?: boolean },
+  ): OutputFormat {
     if (this.recorder !== null) {
       throw new Error('Ya hay una grabación en curso');
     }
@@ -414,6 +419,13 @@ export class Engine {
     this.recordResolve = null;
     this.recordReject = null;
     this.resumeAfterExport = this.machine.current === 'playing';
+    if (options?.resumeAfterExport !== undefined) {
+      this.resumeAfterExport = options.resumeAfterExport;
+    }
+    if (this.autoStopTimer !== null) {
+      window.clearTimeout(this.autoStopTimer);
+      this.autoStopTimer = null;
+    }
 
     recorder.ondataavailable = (event: BlobEvent) => {
       if (event.data.size > 0) {
@@ -424,6 +436,10 @@ export class Engine {
       this.callbacks.onError?.('Error durante la grabación de vídeo');
     };
     recorder.onstop = () => {
+      if (this.autoStopTimer !== null) {
+        window.clearTimeout(this.autoStopTimer);
+        this.autoStopTimer = null;
+      }
       const chunks = this.recordChunks;
       const usedFormat = this.recordFormat ?? format;
       const resolve = this.recordResolve;
@@ -451,7 +467,7 @@ export class Engine {
       }
       this.resumeAfterExport = false;
       if (chunks.length === 0) {
-        reject?.(new Error('La grabación fue demasiado corta; mantén al menos 2 segundos'));
+        reject?.(new Error('La grabación fue demasiado corta o no se capturaron datos'));
         return;
       }
       resolve?.({
@@ -462,14 +478,27 @@ export class Engine {
 
     this.send('EXPORT_START');
     recorder.start(1000);
+    if (options?.autoStopMs !== undefined) {
+      this.autoStopTimer = window.setTimeout(() => {
+        this.autoStopTimer = null;
+        const active = this.recorder;
+        if (active !== null && active.state !== 'inactive') {
+          try {
+            active.stop();
+          } catch {
+            // ignore
+          }
+        }
+      }, options.autoStopMs);
+    }
     return format;
   }
 
   /**
    * Exporta automáticamente un vídeo de archivo cargado: reproduce y graba la
-   * duración completa del original, intentando conservar el formato (MP4).
+   * duración completa del original en el contenedor elegido.
    */
-  async exportSourceVideo(): Promise<VideoRecordingResult> {
+  async exportSourceVideo(preferredFormat: OutputFormat['extension'] = 'mp4'): Promise<VideoRecordingResult> {
     if (!this.canExportSourceVideo() || this.source === null) {
       throw new Error('No hay un vídeo de archivo cargado para exportar');
     }
@@ -483,15 +512,12 @@ export class Engine {
     this.machine.reset();
     this.send('PLAY');
 
-    const format = this.startVideoExport('mp4');
+    const format = this.startVideoExport(preferredFormat, { resumeAfterExport: true });
     this.recordingFullSource = true;
     this.stoppingFullSourceRecording = false;
 
     // startVideoExport() cambió el estado a EXPORT_START; reanudar reproducción del vídeo.
     this.source.play();
-    if (this.machine.current !== 'exporting') {
-      this.send('PLAY');
-    }
 
     return new Promise<VideoRecordingResult>((resolve, reject) => {
       this.recordResolve = resolve;
@@ -502,10 +528,64 @@ export class Engine {
     });
   }
 
+  /**
+   * Exporta automáticamente un clip del canvas en el contenedor elegido.
+   * Para fuentes sin duración propia (imagen, cámara, patrón), graba durante
+   * un intervalo fijo y renderiza por cuenta propia.
+   */
+  async exportCanvasVideo(
+    preferredFormat: OutputFormat['extension'],
+    durationSeconds = AUTO_EXPORT_DURATION_SECONDS,
+  ): Promise<VideoRecordingResult> {
+    if (this.recorder !== null) {
+      throw new Error('Ya hay una grabación en curso');
+    }
+    if (this.disposed || this.gl === null) {
+      throw new Error('El motor no está listo para exportar');
+    }
+
+    const wasPlaying = this.machine.current === 'playing';
+    if (!wasPlaying) {
+      if (this.machine.current === 'error') {
+        this.machine.reset();
+      }
+      if (this.machine.current === 'idle' || this.machine.current === 'paused') {
+        this.send('PLAY');
+      }
+    }
+
+    const format = this.startVideoExport(preferredFormat, {
+      autoStopMs: Math.max(500, Math.round(durationSeconds * 1000)),
+      resumeAfterExport: wasPlaying,
+    });
+
+    // Garantizar reproducción de la fuente de vídeo/cámara si aplica.
+    this.source?.play();
+
+    return new Promise<VideoRecordingResult>((resolve, reject) => {
+      this.recordResolve = resolve;
+      this.recordReject = reject;
+      this.start();
+      void format;
+    });
+  }
+
+  /** Exporta vídeo automáticamente: duración completa para archivo, o clip automático para otras fuentes. */
+  async exportVideo(preferredFormat: OutputFormat['extension']): Promise<VideoRecordingResult> {
+    if (this.canExportSourceVideo()) {
+      return this.exportSourceVideo(preferredFormat);
+    }
+    return this.exportCanvasVideo(preferredFormat);
+  }
+
   stopVideoExport(): Promise<VideoRecordingResult> {
     const recorder = this.recorder;
     if (recorder === null) {
       return Promise.reject(new Error('No hay ninguna grabación en curso'));
+    }
+    if (this.autoStopTimer !== null) {
+      window.clearTimeout(this.autoStopTimer);
+      this.autoStopTimer = null;
     }
     return new Promise<VideoRecordingResult>((resolve, reject) => {
       if (recorder.state === 'inactive') {
@@ -554,7 +634,11 @@ export class Engine {
     const delta = Math.min(0.1, Math.max(0, (timestamp - this.lastTimestamp) / 1000));
     this.lastTimestamp = timestamp;
 
-    if (this.machine.current === 'playing' || this.machine.current === 'scrubbing') {
+    if (
+      this.machine.current === 'playing' ||
+      this.machine.current === 'scrubbing' ||
+      this.machine.current === 'exporting'
+    ) {
       this.elapsed += delta;
     }
     if (delta > 0) {
@@ -674,6 +758,10 @@ export class Engine {
     this.stop();
     this.canvas.removeEventListener('webglcontextlost', this.onContextLost, false);
     this.canvas.removeEventListener('webglcontextrestored', this.onContextRestored, false);
+    if (this.autoStopTimer !== null) {
+      window.clearTimeout(this.autoStopTimer);
+      this.autoStopTimer = null;
+    }
     if (this.recorder !== null) {
       this.recorder.onstop = null;
       if (this.recorder.state !== 'inactive') {

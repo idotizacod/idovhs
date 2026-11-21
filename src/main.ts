@@ -2,7 +2,7 @@ import './styles.css';
 import logoUrl from '../brand/logo.png?url';
 import { cloneDefaultParams } from './config';
 import { Engine } from './core/Engine';
-import { INPUT_ACCEPT } from './core/mediaFormats';
+import { getSupportedVideoExtensions, INPUT_ACCEPT, type OutputExtension } from './core/mediaFormats';
 import { buildControls } from './ui/controls';
 import type { RenderStats } from './types';
 
@@ -177,7 +177,12 @@ timelineInput.addEventListener('pointerup', finishScrub);
 timelineInput.addEventListener('pointercancel', finishScrub);
 
 const exportPngButton = element<HTMLButtonElement>('btn-export-png');
-const exportMp4Button = element<HTMLButtonElement>('btn-export-mp4');
+const exportVideoButton = element<HTMLButtonElement>('btn-export-video');
+const videoExportChooser = element<HTMLElement>('video-export-chooser');
+const formatMp4Button = element<HTMLButtonElement>('btn-format-mp4');
+const formatWebmButton = element<HTMLButtonElement>('btn-format-webm');
+const exportConfirmButton = element<HTMLButtonElement>('btn-export-confirm');
+const exportCancelButton = element<HTMLButtonElement>('btn-export-cancel');
 
 function reportError(error: unknown): void {
   showError(error instanceof Error ? error.message : String(error));
@@ -198,6 +203,40 @@ function downloadBlob(blob: Blob, extension: string): void {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+let selectedVideoFormat: OutputExtension | null = null;
+let videoExporting = false;
+
+function setFormatSelection(format: OutputExtension | null): void {
+  selectedVideoFormat = format;
+  formatMp4Button.setAttribute('aria-pressed', format === 'mp4' ? 'true' : 'false');
+  formatWebmButton.setAttribute('aria-pressed', format === 'webm' ? 'true' : 'false');
+  exportConfirmButton.disabled = format === null;
+}
+
+function closeVideoExportChooser(): void {
+  videoExportChooser.hidden = true;
+  exportVideoButton.hidden = false;
+  exportVideoButton.disabled = false;
+  exportVideoButton.textContent = 'EXPORTAR VIDEO';
+  setFormatSelection(null);
+}
+
+function openVideoExportChooser(): void {
+  if (videoExporting || engine.isRecording()) {
+    return;
+  }
+  const supported = getSupportedVideoExtensions();
+  if (supported.length === 0) {
+    reportError('La grabación de vídeo no está disponible en este navegador');
+    return;
+  }
+  formatMp4Button.disabled = !supported.includes('mp4');
+  formatWebmButton.disabled = !supported.includes('webm');
+  setFormatSelection(null);
+  exportVideoButton.hidden = true;
+  videoExportChooser.hidden = false;
+}
+
 exportPngButton.addEventListener('click', () => {
   clearError();
   exportPngButton.disabled = true;
@@ -209,44 +248,55 @@ exportPngButton.addEventListener('click', () => {
     });
 });
 
-exportMp4Button.addEventListener('click', () => {
+exportVideoButton.addEventListener('click', () => {
   clearError();
-  if (engine.isRecording()) {
-    exportMp4Button.disabled = true;
-    engine.stopVideoExport()
-      .then(({ blob, format }) => downloadBlob(blob, format.extension))
-      .catch(reportError)
-      .finally(() => {
-        exportMp4Button.disabled = false;
-        exportMp4Button.textContent = 'EXPORTAR MP4';
-        exportPngButton.disabled = false;
-      });
+  openVideoExportChooser();
+});
+
+formatMp4Button.addEventListener('click', () => {
+  if (!formatMp4Button.disabled) {
+    setFormatSelection('mp4');
+  }
+});
+
+formatWebmButton.addEventListener('click', () => {
+  if (!formatWebmButton.disabled) {
+    setFormatSelection('webm');
+  }
+});
+
+exportCancelButton.addEventListener('click', () => {
+  if (videoExporting) {
     return;
   }
+  clearError();
+  closeVideoExportChooser();
+});
 
-  // Si hay un vídeo de archivo cargado, exportarlo completo con su duración original.
-  if (engine.canExportSourceVideo()) {
-    exportPngButton.disabled = true;
-    exportMp4Button.disabled = true;
-    exportMp4Button.textContent = 'EXPORTANDO…';
-    engine.exportSourceVideo()
-      .then(({ blob, format }) => downloadBlob(blob, format.extension))
-      .catch(reportError)
-      .finally(() => {
-        exportMp4Button.disabled = false;
-        exportMp4Button.textContent = 'EXPORTAR MP4';
-        exportPngButton.disabled = false;
-      });
+exportConfirmButton.addEventListener('click', () => {
+  clearError();
+  const format = selectedVideoFormat;
+  if (format === null || videoExporting) {
     return;
   }
+  videoExporting = true;
+  exportPngButton.disabled = true;
+  exportConfirmButton.disabled = true;
+  exportCancelButton.disabled = true;
+  formatMp4Button.disabled = true;
+  formatWebmButton.disabled = true;
+  exportConfirmButton.textContent = 'EXPORTANDO…';
 
-  try {
-    const format = engine.startVideoExport();
-    exportPngButton.disabled = true;
-    exportMp4Button.textContent = format.extension === 'mp4' ? '■ DETENER' : '■ DETENER (WEBM)';
-  } catch (error) {
-    reportError(error);
-  }
+  engine.exportVideo(format)
+    .then(({ blob, format: usedFormat }) => downloadBlob(blob, usedFormat.extension))
+    .catch(reportError)
+    .finally(() => {
+      videoExporting = false;
+      exportPngButton.disabled = false;
+      exportCancelButton.disabled = false;
+      exportConfirmButton.textContent = 'CONFIRMAR';
+      closeVideoExportChooser();
+    });
 });
 
 engine.send('PLAY');

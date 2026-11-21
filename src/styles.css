@@ -178,6 +178,39 @@ body::before {
   gap: var(--space-xs);
 }
 
+.video-export-control {
+  align-items: center;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.video-export-chooser {
+  align-items: center;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.video-export-chooser[hidden] {
+  display: none;
+}
+
+.export-label {
+  font-family: var(--ido-font-mono);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.btn-toggle[aria-pressed='true'] {
+  background: var(--ido-celeste);
+}
+
+.btn-toggle:disabled {
+  opacity: 0.35;
+}
+
 .status-pill {
   background: var(--ido-surface-raised);
   border: 2px solid var(--ido-negro);
