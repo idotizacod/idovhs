@@ -3,7 +3,7 @@
 ## Registro formal
 
 - **Proyecto:** Idotiza
-- **Logotipo principal:** `logo.png` (entregado por el usuario, fondo transparente).
+- **Logotipo principal:** `logo.png` (PNG 720×720 entregado por el usuario como `tv.jpeg`).
 - **Sello histórico:** `sock.svg` (calcetín dibujado a mano, primer registro del módulo).
 - **Alcance:** paquete agnóstico de la app. Cada proyecto que lo consuma define su propio título.
 
@@ -18,6 +18,6 @@
 
 ## Descripción del logotipo actual
 
-Archivo PNG con alpha, derivado de `idotiza BGL.jpg.png`, optimizado a 547×600 px. Se muestra con `height: 64px` y `object-fit: contain`. El título va aparte en tipografía máquina de escribir.
+Archivo PNG cuadrado de 720×720 px, derivado de `tv.jpeg` (entregado por el usuario). Se muestra con `height: 64px` y `object-fit: contain`. El título va aparte en tipografía máquina de escribir.
 
 > Si cambia el logotipo, reemplaza `logo.png`: todas las apps que consuman el paquete heredan el cambio sin tocar código.

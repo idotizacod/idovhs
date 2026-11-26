@@ -30,7 +30,7 @@ Después de actualizar el paquete, sincroniza los consumidores con `git submodul
 | `tokens.ts` | `BRAND_NAME`, `IDO_COLORS`, `hexToRgb01` e `IDO_GRADE_PALETTE` para TS/Canvas/WebGL. |
 | `tokens.json` | Design tokens W3C para Style Dictionary o Figma Tokens. |
 | `grade.glsl` | Chunk GLSL ES 3.00 con `idoBrandGrade()`, sin uniforms acoplados. |
-| `logo.png` | Logotipo principal con alpha (547×600). |
+| `logo.png` | Logotipo principal en PNG 720×720, derivado de `tv.jpeg`. |
 | `sock.svg` | Sello histórico del módulo original. |
 | `ICONOGRAFIA.md` | Registro formal de sellos e iconografía. |
 

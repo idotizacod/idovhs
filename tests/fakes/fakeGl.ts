@@ -15,13 +15,21 @@ export function createFakeGl(): FakeGl {
     calls.push({ name, args });
   };
 
+  const create = (name: string) => (...args: unknown[]): object => {
+    calls.push({ name, args });
+    return {};
+  };
+
   const gl = {
     ARRAY_BUFFER: 0x8894,
     COLOR_ATTACHMENT0: 0x8ce0,
+    COLOR_BUFFER_BIT: 0x4000,
     FLOAT: 0x1406,
     FRAMEBUFFER: 0x8d40,
     FRAMEBUFFER_COMPLETE: 0x8cd5,
     LINEAR: 0x2601,
+    MAX_TEXTURE_SIZE: 0x0d33,
+    NO_ERROR: 0,
     RGBA: 0x1908,
     RGBA8: 0x8058,
     STATIC_DRAW: 0x88e4,
@@ -32,21 +40,25 @@ export function createFakeGl(): FakeGl {
     TEXTURE_WRAP_T: 0x2803,
     TRIANGLES: 0x0004,
     UNSIGNED_BYTE: 0x1401,
-    createVertexArray: record('createVertexArray'),
+    createVertexArray: create('createVertexArray'),
     bindVertexArray: record('bindVertexArray'),
-    createBuffer: record('createBuffer'),
+    createBuffer: create('createBuffer'),
     bindBuffer: record('bindBuffer'),
     bufferData: record('bufferData'),
     enableVertexAttribArray: record('enableVertexAttribArray'),
     vertexAttribPointer: record('vertexAttribPointer'),
-    createTexture: record('createTexture'),
+    createTexture: create('createTexture'),
     bindTexture: record('bindTexture'),
     texImage2D: record('texImage2D'),
     texParameteri: record('texParameteri'),
-    createFramebuffer: record('createFramebuffer'),
+    createFramebuffer: create('createFramebuffer'),
     bindFramebuffer: record('bindFramebuffer'),
     framebufferTexture2D: record('framebufferTexture2D'),
     checkFramebufferStatus: () => 0x8cd5,
+    clear: record('clear'),
+    clearColor: record('clearColor'),
+    getError: () => 0,
+    getParameter: () => 4096,
     viewport: record('viewport'),
     drawArrays: record('drawArrays'),
     deleteTexture: record('deleteTexture'),

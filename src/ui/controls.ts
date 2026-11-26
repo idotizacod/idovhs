@@ -26,6 +26,8 @@ interface BoundControl {
   reset: () => void;
 }
 
+const controlResets = new WeakMap<HTMLElement, () => void>();
+
 let controlCounter = 0;
 
 function nextId(prefix: string): string {
@@ -69,6 +71,7 @@ function createSlider(
     const value = Number(input.value);
     output.textContent = format(value);
     onChange(value);
+    row.dispatchEvent(new Event('controlchange', { bubbles: true }));
   };
   const reset = (): void => {
     input.value = String(options.value);
@@ -78,6 +81,8 @@ function createSlider(
   // Doble click: el fader vuelve a su posición inicial.
   input.addEventListener('dblclick', reset);
 
+  row.dataset.control = 'true';
+  controlResets.set(row, reset);
   row.append(label, output, input);
   container.append(row);
   return { reset };
@@ -109,6 +114,7 @@ function createSelect<T extends string>(
 
   const apply = (): void => {
     onChange(select.value as T);
+    row.dispatchEvent(new Event('controlchange', { bubbles: true }));
   };
   const reset = (): void => {
     select.value = options.value;
@@ -117,9 +123,103 @@ function createSelect<T extends string>(
   select.addEventListener('change', apply);
   select.addEventListener('dblclick', reset);
 
+  row.dataset.control = 'true';
+  controlResets.set(row, reset);
   row.append(label, select);
   container.append(row);
   return { reset };
+}
+
+interface ParameterEntry {
+  label: string;
+  chip: HTMLButtonElement;
+  control: HTMLElement;
+  value: HTMLElement;
+  reset: () => void;
+}
+
+function readControlValue(control: HTMLElement): string {
+  const output = control.querySelector<HTMLOutputElement>('.control-value');
+  if (output !== null) {
+    return output.textContent ?? '';
+  }
+  const select = control.querySelector<HTMLSelectElement>('select');
+  return select?.selectedOptions[0]?.textContent ?? '';
+}
+
+/** Convierte los controles en chips y muestra solo el fader/selector del parámetro elegido. */
+function setupAdvancedEditor(): void {
+  const racks = document.getElementById('racks');
+  const editor = document.getElementById('param-editor');
+  const editorLabel = document.getElementById('param-editor-label');
+  const editorBody = document.getElementById('param-editor-body');
+  const editorReset = document.getElementById('param-editor-reset');
+
+  if (
+    racks === null ||
+    editor === null ||
+    editorLabel === null ||
+    editorBody === null ||
+    editorReset === null
+  ) {
+    throw new Error('No se encontró el editor de parámetros avanzados');
+  }
+
+  const entries: ParameterEntry[] = [];
+  let selected: ParameterEntry | null = null;
+
+  const selectEntry = (entry: ParameterEntry): void => {
+    if (selected !== null) {
+      selected.chip.setAttribute('aria-pressed', 'false');
+      selected.control.remove();
+    }
+    selected = entry;
+    entry.control.remove();
+    editorBody.replaceChildren(entry.control);
+    editorLabel.textContent = entry.label;
+    editor.hidden = false;
+    entry.chip.setAttribute('aria-pressed', 'true');
+  };
+
+  racks.querySelectorAll<HTMLElement>('.control[data-control]').forEach((control) => {
+    const label = control.querySelector('label')?.textContent?.trim() || 'PARÁMETRO';
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'param-chip';
+    chip.setAttribute('aria-pressed', 'false');
+    chip.title = label;
+
+    const name = document.createElement('span');
+    name.className = 'param-chip-label';
+    name.textContent = label;
+    const value = document.createElement('span');
+    value.className = 'param-chip-value';
+    value.textContent = readControlValue(control);
+
+    const entry: ParameterEntry = {
+      label,
+      chip,
+      control,
+      value,
+      reset: controlResets.get(control) ?? (() => undefined),
+    };
+    chip.append(name, value);
+    chip.addEventListener('click', () => selectEntry(entry));
+    control.addEventListener('controlchange', () => {
+      value.textContent = readControlValue(control);
+    });
+    control.replaceWith(chip);
+    entries.push(entry);
+  });
+
+  editorReset.addEventListener('click', () => {
+    selected?.reset();
+  });
+
+  const first = entries[0];
+  if (first !== undefined) {
+    selectEntry(first);
+  }
 }
 
 /** Construye los racks de parámetros y devuelve un reset que restaura valores y parámetros. */
@@ -761,6 +861,8 @@ export function buildControls(params: EngineParams, engine: Engine): { reset: ()
       (value) => engine.setDatamosh({ feedback: value }),
     ),
   );
+
+  setupAdvancedEditor();
 
   return {
     reset: () => controls.forEach((control) => control.reset()),

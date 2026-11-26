@@ -244,6 +244,16 @@ export class Engine {
     };
   }
 
+  /** Proporción real de la lona, incluido el modo "original" según la fuente activa. */
+  getAspectRatio(): number {
+    const source: Size = this.source?.size ?? { width: 0, height: 0 };
+    return aspectRatioValue(this.params.output.aspectRatio, source);
+  }
+
+  getParams(): EngineParams {
+    return validateParams(this.params);
+  }
+
   setParams(params: EngineParams): void {
     this.params = validateParams(params);
   }

@@ -49,6 +49,25 @@ npm test          # pruebas unitarias
 npm run preview   # servir dist/
 ```
 
+## APK Android
+
+El contenedor Android vive en `app/` y sigue la misma herramienta que IDOplayer: Gradle 8.9 (wrapper incluido), AGP 8.7.3, Kotlin 2.0.21, JDK 17, `minSdk 30` y `compileSdk/targetSdk 35`. La app web se empaqueta sin servidor: `dist/` se registra como `assets/` y `gradlew` ejecuta `npm run build` antes de generar el APK.
+
+```bash
+.\gradlew.bat assembleDebug assembleRelease
+```
+
+Salidas:
+
+- `app/build/outputs/apk/debug/app-debug.apk`
+- `app/build/outputs/apk/release/app-release.apk`
+
+También se copian con nombres amigables en `apk/IDOvhs-debug.apk` y `apk/IDOvhs-release.apk`.
+
+La firma release se lee de `.local/keystore.properties` y usa `.local/idovhs-release.jks` (mismo certificado con el que se firmó IDOplayer). `local.properties` apunta al SDK; ambos archivos están excluidos por `.gitignore`.
+
+El `WebView` sirve `dist/` desde el origen local `https://idovhs.local/` mediante `shouldInterceptRequest` (los módulos ES de Vite no se pueden cargar desde `file://` por CORS) y usa WebGL 2.0 acelerado por hardware. El selector de archivos, los permisos de cámara/micrófono y la descarga de exportaciones están integrados: PNG/MP4/WEBM se guardan en `Descargas/IDOVHS` mediante el puente `IDOVHSApi`. La tipografía `Special Elite` es local, así que la APK funciona sin conexión. La vista previa y sus controles se limitan al 60% superior de la pantalla para dejar espacio a los faders. La interfaz incluye un **modo rápido** estilo InShot (pestañas, presets con miniaturas, intensidad, comparar y exportar) y un **modo avanzado** estilo InShot: cada parámetro aparece como un chip con su valor actual y, al tocarlo, un panel fijo muestra únicamente su fader o selector (con `RESET`). En `MIS FILTROS` puedes guardar el look actual con nombre, volver a aplicarlo y borrarlo; la lista se conserva en `localStorage` (`idovhs.savedFilters.v1`) y se valida al cargar. El preview usa una **lona con proporción fija**: el marco adopta la relación de salida (`original`, `4:5`, `1:1`, `16:9`, `9:16`), centra el contenido sobre fondo negro sin estirarlo y respeta el límite del 60% superior.
+
 ## Arquitectura
 
 ```
@@ -81,7 +100,10 @@ Cada pass es un `ShaderProgram` con uniforms inyectados desde los contratos de d
 | `src/shaders/*.glsl` | Fragment/vertex shaders GLSL ES 3.00 (incluye `datamosh.frag.glsl`) |
 | `src/core/shaderSources.ts` | Composición/importación de shaders de la cadena |
 | `src/config.ts` | Configuración de runtime (`APP_TITLE`, viewport, flags) y parámetros por defecto |
-| `src/ui/controls.ts` | Construcción de los racks y controles |
+| `src/ui/controls.ts` | Racks, chips de parámetros y editor de un solo control activo |
+| `src/ui/quick.ts` | Panel rápido estilo InShot: presets, intensidad, comparar y filtros guardados |
+| `src/ui/quickPresets.ts` | Definición de presets rápidos y aplicación de intensidad |
+| `src/ui/savedFilters.ts` | Persistencia, validación y CRUD de filtros guardados |
 | `brand/` | Paquete de marca agnóstico: tokens CSS/TS/JSON, `grade.glsl`, assets (`logo.png`, `sock.svg`) y metadatos (`package.json`) |
 | `brand/tokens.css` / `tokens.ts` / `tokens.json` | Paleta Idotiza, fuente única para CSS/TS/otras apps |
 | `src/styles.css` | Sistema de diseño y layout de consola |
@@ -108,7 +130,7 @@ Identidad DIY / fanzine / post-punk con deep lore alquimista santiaguino en bús
 | `rojo` | `#FF1E00` | Títulos y acentos |
 | `celeste` | `#62F2F6` | Filtros |
 
-Tipografía: máquina de escribir monospace (`Special Elite`, fallback `Courier New`/`monospace`) en **toda** la interfaz — títulos, párrafos, botones, etiquetas, lecturas y detalles. Texturas: grano, VHS, compresión digital, papel de cuaderno y papel de plástico. Logo: `brand/logo.png` (PNG transparente; cabecera y favicon). El paquete `brand/` es agnóstico: el título de la app (**IDOVHS**, subtítulo **idotiza**) se define en la app (`index.html`, `src/config.ts`), no en los tokens de marca. Doble click en un fader lo devuelve a su valor inicial.
+Tipografía: máquina de escribir monospace (`Special Elite`, fallback `Courier New`/`monospace`) en **toda** la interfaz — títulos, párrafos, botones, etiquetas, lecturas y detalles. Texturas: grano, VHS, compresión digital, papel de cuaderno y papel de plástico. Logo: `brand/logo.png` (PNG 720×720 derivado de `tv.jpeg`; cabecera y favicon). El paquete `brand/` es agnóstico: el título de la app (**IDOVHS**, subtítulo **idotiza**) se define en la app (`index.html`, `src/config.ts`), no en los tokens de marca. Doble click en un fader lo devuelve a su valor inicial.
 
 Para otra app: `@import 'brand/tokens.css'`, importar `IDO_COLORS`/`hexToRgb01` (y `IDO_GRADE_PALETTE` si aplica) desde `brand/tokens`, y concatenar `brand/grade.glsl?raw` en el fragment shader. El control **INTENSIDAD DEL GRADE** del RACK 04 ajusta el mismo filtro en tiempo real. `brand/package.json` expone exports para consumo como paquete/submódulo. Ver `brand/README.md`.
 

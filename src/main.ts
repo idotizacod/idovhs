@@ -4,6 +4,7 @@ import { cloneDefaultParams } from './config';
 import { Engine } from './core/Engine';
 import { getSupportedVideoExtensions, INPUT_ACCEPT, type OutputExtension } from './core/mediaFormats';
 import { buildControls } from './ui/controls';
+import { buildQuickControls } from './ui/quick';
 import type { RenderStats } from './types';
 
 function element<T extends HTMLElement>(id: string): T {
@@ -25,6 +26,51 @@ const timelineBar = element<HTMLElement>('timeline-bar');
 const timelineInput = element<HTMLInputElement>('timeline');
 const timeCurrent = element<HTMLElement>('time-current');
 const timeDuration = element<HTMLElement>('time-duration');
+const viewportPanel = element<HTMLElement>('viewport-panel');
+const canvasFrame = element<HTMLElement>('canvas-frame');
+
+function cssPx(value: string): number {
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+/** Reserva el espacio de controles para que el playback nunca pase del 60% alto. */
+function updatePlaybackBounds(): void {
+  const panelStyle = getComputedStyle(viewportPanel);
+  const limit = cssPx(panelStyle.maxHeight) || window.innerHeight * 0.6;
+  const padding = cssPx(panelStyle.paddingTop) + cssPx(panelStyle.paddingBottom);
+  const border = cssPx(panelStyle.borderTopWidth) + cssPx(panelStyle.borderBottomWidth);
+  const controlsHeight = Array.from(viewportPanel.children)
+    .filter(
+      (child): child is HTMLElement =>
+        child instanceof HTMLElement && child !== canvasFrame && !child.hidden,
+    )
+    .reduce((total, child) => {
+      const style = getComputedStyle(child);
+      return (
+        total +
+        child.getBoundingClientRect().height +
+        cssPx(style.marginTop) +
+        cssPx(style.marginBottom)
+      );
+    }, 0);
+
+  const available = Math.max(0, Math.floor(limit - padding - border - controlsHeight));
+  canvasFrame.style.setProperty('--playback-canvas-max-height', `${available}px`);
+}
+
+let lastCanvasRatio = 0;
+
+/** La lona adopta la proporción de salida para que el contenido no se estire. */
+function updateCanvasAspect(): void {
+  const ratio = engine.getAspectRatio();
+  if (!Number.isFinite(ratio) || ratio <= 0 || Math.abs(ratio - lastCanvasRatio) < 0.001) {
+    return;
+  }
+  lastCanvasRatio = ratio;
+  canvasFrame.style.setProperty('--canvas-ratio', ratio.toFixed(6));
+  updatePlaybackBounds();
+}
 
 const params = cloneDefaultParams();
 
@@ -39,11 +85,13 @@ document.head.append(favicon);
 function showError(message: string): void {
   errorMessage.textContent = `ERROR: ${message}`;
   errorMessage.hidden = false;
+  updatePlaybackBounds();
 }
 
 function clearError(): void {
   errorMessage.textContent = '';
   errorMessage.hidden = true;
+  updatePlaybackBounds();
 }
 
 function formatTime(seconds: number): string {
@@ -75,10 +123,18 @@ function getTimelineDuration(): number {
 let scrubbingTimeline = false;
 let wasPlayingBeforeScrub = false;
 
+let timelineVisible: boolean | null = null;
+
 function updateTimeline(): void {
+  updateCanvasAspect();
   const duration = getTimelineDuration();
   const show = duration > 0.01;
   timelineBar.hidden = !show;
+
+  if (timelineVisible !== show) {
+    timelineVisible = show;
+    updatePlaybackBounds();
+  }
 
   if (!show) {
     requestAnimationFrame(updateTimeline);
@@ -120,6 +176,25 @@ try {
 }
 
 const controls = buildControls(params, engine);
+const quickControls = buildQuickControls(engine);
+
+const quickPanel = element<HTMLElement>('quick-panel');
+const racks = element<HTMLElement>('racks');
+const modeQuickButton = element<HTMLButtonElement>('btn-mode-quick');
+const modeAdvancedButton = element<HTMLButtonElement>('btn-mode-advanced');
+
+function setUiMode(mode: 'quick' | 'advanced'): void {
+  const quick = mode === 'quick';
+  quickPanel.hidden = !quick;
+  racks.hidden = quick;
+  modeQuickButton.setAttribute('aria-pressed', String(quick));
+  modeAdvancedButton.setAttribute('aria-pressed', String(!quick));
+  updatePlaybackBounds();
+}
+
+modeQuickButton.addEventListener('click', () => setUiMode('quick'));
+modeAdvancedButton.addEventListener('click', () => setUiMode('advanced'));
+element<HTMLButtonElement>('btn-quick-advanced').addEventListener('click', () => setUiMode('advanced'));
 
 element<HTMLButtonElement>('btn-play').addEventListener('click', () => {
   clearError();
@@ -131,6 +206,7 @@ element<HTMLButtonElement>('btn-pause').addEventListener('click', () => {
 element<HTMLButtonElement>('btn-reset').addEventListener('click', () => {
   clearError();
   controls.reset();
+  quickControls.reset();
   engine.send('RESET');
 });
 
@@ -219,6 +295,7 @@ function closeVideoExportChooser(): void {
   exportVideoButton.disabled = false;
   exportVideoButton.textContent = 'EXPORTAR VIDEO';
   setFormatSelection(null);
+  updatePlaybackBounds();
 }
 
 function openVideoExportChooser(): void {
@@ -235,6 +312,7 @@ function openVideoExportChooser(): void {
   setFormatSelection(null);
   exportVideoButton.hidden = true;
   videoExportChooser.hidden = false;
+  updatePlaybackBounds();
 }
 
 exportPngButton.addEventListener('click', () => {
@@ -298,6 +376,12 @@ exportConfirmButton.addEventListener('click', () => {
       closeVideoExportChooser();
     });
 });
+
+updatePlaybackBounds();
+window.addEventListener('resize', updatePlaybackBounds);
+window.addEventListener('orientationchange', updatePlaybackBounds);
+window.addEventListener('load', updatePlaybackBounds);
+document.fonts?.ready.then(() => updatePlaybackBounds());
 
 engine.send('PLAY');
 engine.start();

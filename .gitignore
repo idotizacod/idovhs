@@ -5,3 +5,11 @@ dist/
 *.log
 .DS_Store
 coverage/
+.gradle/
+.local/
+build/
+app/build/
+local.properties
+.idea/
+*.iml
+apk/

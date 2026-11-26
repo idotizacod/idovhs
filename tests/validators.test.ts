@@ -17,14 +17,15 @@ describe('validadores de parámetros', () => {
   });
 
   it('normaliza ISO fuera de rango', () => {
+    const defaults = cloneDefaultParams();
     const validated = validateDigicam({
-      ...cloneDefaultParams().digicam,
+      ...defaults.digicam,
       isoGain: 9999,
       flashThreshold: Number.NaN,
       sensorProfile: 'desconocido' as 'sony_ccd_v1',
     });
     expect(validated.isoGain).toBe(6400);
-    expect(validated.flashThreshold).toBe(0.82);
+    expect(validated.flashThreshold).toBe(defaults.digicam.flashThreshold);
     expect(validated.sensorProfile).toBe('sony_ccd_v1');
     expect(normalizeIso(100)).toBe(0);
     expect(normalizeIso(6400)).toBe(1);
@@ -40,7 +41,7 @@ describe('validadores de parámetros', () => {
     });
     expect(vhs.trackingJitter).toBe(0);
     expect(vhs.barrelDistortion).toBe(0.5);
-    expect(vhs.magneticNoise).toBe(0.22);
+    expect(vhs.magneticNoise).toBe(params.vhs.magneticNoise);
 
     const compression = validateCompression({
       ...params.compression,

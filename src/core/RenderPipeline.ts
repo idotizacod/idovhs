@@ -86,11 +86,15 @@ export class RenderPipeline {
 
   private allocateTextures(): void {
     const gl = this.gl;
-    const allTextures = [...this.textures];
-    if (this.historyTexture !== null) {
-      allTextures.push(this.historyTexture);
+    const targets = this.fbos.map((fbo, index) => ({
+      fbo,
+      texture: this.getTexture(index),
+    }));
+    if (this.historyFBO !== null && this.historyTexture !== null) {
+      targets.push({ fbo: this.historyFBO, texture: this.historyTexture });
     }
-    allTextures.forEach((texture) => {
+
+    targets.forEach(({ fbo, texture }) => {
       gl.bindTexture(gl.TEXTURE_2D, texture);
       gl.texImage2D(
         gl.TEXTURE_2D,
@@ -103,16 +107,28 @@ export class RenderPipeline {
         gl.UNSIGNED_BYTE,
         null,
       );
-    });
+      const error = gl.getError();
+      if (error !== gl.NO_ERROR) {
+        throw new Error(`texImage2D falló con 0x${error.toString(16)}`);
+      }
 
-    const allFbos = [...this.fbos];
-    if (this.historyFBO !== null) {
-      allFbos.push(this.historyFBO);
-    }
-    allFbos.forEach((fbo) => {
+      // En algunos controladores el attachment queda marcado como incompleto
+      // si se enlaza antes de asignar el storage de la textura.
       gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-      if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
-        throw new Error('Framebuffer incompleto: VRAM insuficiente o formato no soportado');
+      gl.framebufferTexture2D(
+        gl.FRAMEBUFFER,
+        gl.COLOR_ATTACHMENT0,
+        gl.TEXTURE_2D,
+        texture,
+        0,
+      );
+      const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+      if (status !== gl.FRAMEBUFFER_COMPLETE) {
+        const maxTexture = gl.getParameter(gl.MAX_TEXTURE_SIZE) as number;
+        throw new Error(
+          `Framebuffer incompleto (0x${status.toString(16)}, ${this.width}x${this.height}, ` +
+            `MAX_TEXTURE_SIZE=${maxTexture}): VRAM insuficiente o formato no soportado`,
+        );
       }
     });
   }

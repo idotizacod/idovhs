@@ -1,4 +1,4 @@
-const CACHE_NAME = 'idovhs-v5';
+const CACHE_NAME = 'idovhs-v8';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

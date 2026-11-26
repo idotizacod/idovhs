@@ -26,10 +26,19 @@
             <p class="brand-note">idotiza</p>
           </div>
         </div>
+
+        <div class="mode-switch" role="group" aria-label="Modo de interfaz">
+          <button id="btn-mode-quick" class="btn btn-toggle" type="button" aria-pressed="true">
+            RÁPIDO
+          </button>
+          <button id="btn-mode-advanced" class="btn btn-toggle" type="button" aria-pressed="false">
+            AVANZADO
+          </button>
+        </div>
       </header>
 
       <main class="workspace">
-        <section class="viewport-panel" aria-label="Vista previa">
+        <section id="viewport-panel" class="viewport-panel" aria-label="Vista previa">
           <div class="panel-heading">
             <div class="source-bar" role="group" aria-label="Fuente de medios">
               <label class="btn btn-file" for="file-input">
@@ -58,7 +67,7 @@
               </div>
             </div>
           </div>
-          <div class="canvas-frame">
+          <div id="canvas-frame" class="canvas-frame">
             <canvas id="viewport" width="1280" height="720" aria-label="Vista previa del efecto"></canvas>
             <div id="context-lost" class="context-lost" hidden>
               <strong>CONTEXTO WEBGL PERDIDO</strong>
@@ -88,7 +97,77 @@
           <p id="error-message" class="error-message" role="alert" hidden></p>
         </section>
 
-        <aside class="racks" aria-label="Módulos de procesamiento">
+        <section id="quick-panel" class="quick-panel" aria-label="Controles rápidos">
+          <div class="quick-head">
+            <h2 id="quick-title">LOOKS</h2>
+            <div class="quick-actions">
+              <button id="quick-compare" class="btn btn-mini" type="button" aria-pressed="false">
+                COMPARAR
+              </button>
+              <button id="quick-reset" class="btn btn-mini btn-muted" type="button">RESET</button>
+            </div>
+          </div>
+
+          <div id="quick-tabs" class="quick-tabs" role="tablist" aria-label="Categorías rápidas">
+            <button class="quick-tab" type="button" data-category="looks" aria-selected="true">LOOKS</button>
+            <button class="quick-tab" type="button" data-category="camera" aria-selected="false">CÁMARA</button>
+            <button class="quick-tab" type="button" data-category="vhs" aria-selected="false">VHS</button>
+            <button class="quick-tab" type="button" data-category="finish" aria-selected="false">ACABADO</button>
+            <button class="quick-tab" type="button" data-category="saved" aria-selected="false">MIS FILTROS</button>
+            <button id="btn-quick-advanced" class="quick-tab quick-tab-advanced" type="button">AVANZADO →</button>
+          </div>
+
+          <div id="quick-presets" class="preset-row" aria-label="Presets de la categoría"></div>
+
+          <div id="quick-save" class="quick-save" hidden>
+            <input
+              id="quick-filter-name"
+              class="quick-name"
+              type="text"
+              maxlength="24"
+              placeholder="NOMBRE DEL FILTRO"
+              aria-label="Nombre del filtro guardado"
+              autocomplete="off"
+            />
+            <button id="quick-save-filter" class="btn btn-mini btn-primary" type="button">
+              GUARDAR
+            </button>
+          </div>
+          <p id="quick-save-status" class="quick-save-status" role="status" aria-live="polite"></p>
+          <p id="quick-saved-empty" class="saved-empty" hidden>
+            Sin filtros guardados. Ajusta el look y pulsa GUARDAR.
+          </p>
+
+          <div id="quick-intensity-row" class="quick-intensity">
+            <label for="quick-intensity">INTENSIDAD</label>
+            <output id="quick-intensity-value" for="quick-intensity">70%</output>
+            <input
+              id="quick-intensity"
+              class="quick-slider"
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value="0.7"
+            />
+          </div>
+
+          <button id="quick-export" class="btn btn-primary quick-export" type="button">
+            EXPORTAR VIDEO
+          </button>
+        </section>
+
+        <aside id="racks" class="racks" aria-label="Módulos de procesamiento" hidden>
+          <section id="param-editor" class="param-editor" aria-label="Editor del parámetro seleccionado" hidden>
+            <div class="param-editor-head">
+              <strong id="param-editor-label">AJUSTES DE IMAGEN</strong>
+              <button id="param-editor-reset" class="btn btn-mini btn-muted" type="button">
+                RESET
+              </button>
+            </div>
+            <div id="param-editor-body" class="param-editor-body"></div>
+          </section>
+
           <details class="rack" open>
             <summary>
               <span class="rack-index">RACK 01</span>
